@@ -2,7 +2,7 @@
 //     Controlador MIDI Personalizado para Valeton GP-200
 //================================================================
 // Por: ROBERT CODER
-// Versión: 2.1.1
+// Versión: 2.2.0
 //================================================================
 
 // --- INCLUIR BIBLIOTECAS ---
@@ -92,7 +92,7 @@ MidiCommand midiCommands[NUM_GUITARS][NUM_BANKS][3] = {
     // CC#57=WAH, CC#70=CTRL2, CC#55=DLY
     {{'C', 0, 57}, {'C', 0, 70}, {'C', 0, 55}},
     // Banco "TABLET"
-    {{'C', 0, 103}, {'C', 0, 104}, {'C', 0, 102}} 
+    {{'T', 0, 103}, {'T', 0, 104}, {'T', 0, 102}}  
   },
   // GUITARRA 1: EPIPHONE
   {
@@ -104,7 +104,7 @@ MidiCommand midiCommands[NUM_GUITARS][NUM_BANKS][3] = {
     // CC#57=WAH, CC#70=CTRL2, CC#55=DLY
     {{'C', 0, 57}, {'C', 0, 70}, {'C', 0, 55}},
     // Banco "TABLET"
-    {{'C', 0, 103}, {'C', 0, 104}, {'C', 0, 102}}
+    {{'T', 0, 103}, {'T', 0, 104}, {'T', 0, 102}} 
   }
 };
 //****************************************************************
@@ -125,10 +125,19 @@ const int LED_PRESET_3 = 10;
 // --- VARIABLES GLOBALES ---
 int currentGuitar = 0;
 int currentBank = 0;
-bool ledStatus[3] = {false, false, false}; // Estado de encendido/apagado para los LEDs de CC
+bool ledStatus[3] = {false, false, false}; 
 
 unsigned long lastDebounceTime = 0;
 const long debounceDelay = 400;
+
+// --- NUEVAS VARIABLES PARA EL PARPADEO DEL LCD ---
+bool isBlinking = false;
+int blinkingPresetIndex = -1; // -1 significa que ninguno parpadea
+unsigned long blinkStartTime = 0;
+unsigned long lastBlinkTime = 0;
+bool blinkState = false;
+const int blinkInterval = 333; // Parpadea cada 333ms
+const int blinkDuration = 2000; // Duración total del parpadeo (2 segundos)
 
 void setup() {
   MIDI.begin(1);
@@ -166,7 +175,7 @@ void setup() {
   lcd.write((byte)1); // Imprime el símbolo en la posición 1 (nota musical2)
   lcd.print(" ");
   delay(700);
-  lcd.write((byte)0); // Imprime el símbolo en la posición 0 (nota musical)
+  lcd.write((byte)0); // Imprime el símbolo en la posición 1 (guitarra)
   delay(2500); // Muestra el mensaje por 2.5 segundos
 
   
@@ -188,6 +197,40 @@ void setup() {
 
 void loop() {
   readButtons();
+  handleBlinking(); // función para controlar el parpadeo
+}
+
+void handleBlinking() {
+  // Solo ejecuta esto si el parpadeo está activado
+  if (!isBlinking) {
+    return;
+  }
+
+  // Comprueba si ya pasaron los 3 segundos
+  if (millis() - blinkStartTime > blinkDuration) {
+    isBlinking = false;
+    blinkingPresetIndex = -1;
+    updateDisplay(); // Restaura la pantalla a su estado normal
+    return;
+  }
+
+  // Comprueba si es momento de cambiar el estado (visible/invisible)
+  if (millis() - lastBlinkTime > blinkInterval) {
+    blinkState = !blinkState; // Invierte el estado
+    lastBlinkTime = millis();
+
+    // Calcula la posición del texto que debe parpadear
+    int cursorPosition = blinkingPresetIndex * 6;
+    lcd.setCursor(cursorPosition, 1);
+
+    if (blinkState) {
+      // Si está visible, escribe el nombre del preset
+      lcd.print(presetNames[currentGuitar][currentBank][blinkingPresetIndex]);
+    } else {
+      // Si está invisible, escribe espacios en blanco
+      lcd.print("    "); 
+    }
+  }
 }
 
 void readButtons() {
@@ -229,29 +272,43 @@ void readButtons() {
 }
 
 void handlePreset(int presetIndex) {
+  // Inicia la secuencia de parpadeo para el preset presionado
+  isBlinking = true;
+  blinkingPresetIndex = presetIndex;
+  blinkStartTime = millis();
+  lastBlinkTime = millis();
+  blinkState = false; // Prepara el estado para que la próxima acción sea "encender"
+
+  // --- LÍNEAS NUEVAS AÑADIDAS ---
+  // Apaga el texto INMEDIATAMENTE para una respuesta visual instantánea
+  int cursorPosition = presetIndex * 6;
+  lcd.setCursor(cursorPosition, 1);
+  lcd.print("    "); 
+  // --- FIN DE LAS LÍNEAS NUEVAS ---
+
+  // La lógica MIDI no cambia
   MidiCommand cmd = midiCommands[currentGuitar][currentBank][presetIndex];
 
-  if (cmd.type == 'P') { // Program Change: cambia de patch
-
-     // Envía el mensaje de Bank Select
+  if (cmd.type == 'P') { 
     MIDI.sendControlChange(0, cmd.bank, 1); 
-     // Envía el Program Change
     MIDI.sendProgramChange(cmd.number, 1);
     
-    // Primero, apaga el estado de todos los LEDs
-    for (int i = 0; i < 3; i++) {
-      ledStatus[i] = false;
-    }
-    // Luego, enciende solo el estado del que acabas de presionar
+    for (int i = 0; i < 3; i++) { ledStatus[i] = false; }
     ledStatus[presetIndex] = true;
-    updateLeds(); // Actualiza los LEDs físicos
+    updateLeds();
   } 
-  else if (cmd.type == 'C') { // Control Change: enciende/apaga un módulo
-    // Esta parte ya funcionaba como querías (enciende y apaga)
-    ledStatus[presetIndex] = !ledStatus[presetIndex]; // Invierte el estado
-    int value = ledStatus[presetIndex] ? 127 : 0; // 127 para ON, 0 para OFF
+  else if (cmd.type == 'C') {
+    ledStatus[presetIndex] = !ledStatus[presetIndex]; 
+    int value = ledStatus[presetIndex] ? 127 : 0;
     MIDI.sendControlChange(cmd.number, value, 1);
     updateLeds();
+  }
+  else if (cmd.type == 'T') { 
+    MIDI.sendControlChange(cmd.number, 127, 1);
+    
+    digitalWrite(LED_PRESET_1 + presetIndex, HIGH);
+    delay(300); 
+    digitalWrite(LED_PRESET_1 + presetIndex, LOW);
   }
 }
 
