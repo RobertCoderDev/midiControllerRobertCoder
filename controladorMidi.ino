@@ -52,20 +52,20 @@ const int NUM_GUITARS = 2;
 const int NUM_BANKS = 4;
 
 const char* guitarNames[NUM_GUITARS] = {"IBANEZ", "EPIPHONE"};
-const char* bankNames[NUM_BANKS] = {"SOLOS", "AMP", "EFECTOS", "TABLET"};
+const char* bankNames[NUM_BANKS] = {"LEAD", "AMP", "EFECTOS", "TABLET"};
 
 // Nombres de los presets (máximo 4 caracteres)
 const char* presetNames[NUM_GUITARS][NUM_BANKS][3] = {
   // GUITARRA 0: IBANEZ
   {
-    {"SOLO", "AMBF", "DLYP"}, // Banco "SOLOS"
+    {"SOLO", "AMBF", "DLYP"}, // Banco "LEAD"
     {"VOX", "FEND", "DR.Z"}, // Banco "AMP"
     {"WAHA", "CTRL", "DLY"},    // Banco "EFECTOS"
     {"ANT", "NOTA", "SIG"} // Banco "TABLET"
   },
   // GUITARRA 1: EPIPHONE
   {
-    {"SOLO", "AMBF", "DLYP"}, // Banco "SOLOS"
+    {"SOLO", "AMBF", "DLYP"}, // Banco "LEAD"
     {"VOX", "FEND", "DR.Z"}, // Banco "AMP"
     {"WAHA", "CTRL", "DLY"},    // Banco "EFECTOS"
     {"ANT", "NOTA", "SIG"} // Banco "TABLET"
@@ -84,7 +84,7 @@ struct MidiCommand {
 MidiCommand midiCommands[NUM_GUITARS][NUM_BANKS][3] = {
   // GUITARRA 0: IBANEZ
   {
-    // Banco "SOLOS" - Cambian a patches completos (PC)
+    // Banco "LEAD" - Cambian a patches completos (PC)
     {{'P', 0, 3}, {'P', 0, 1}, {'P', 0, 2}},
     // Banco "AMP" - Cambian a patches completos (PC)
     {{'P', 0, 9}, {'P', 0, 8}, {'P', 0, 10}},
@@ -96,7 +96,7 @@ MidiCommand midiCommands[NUM_GUITARS][NUM_BANKS][3] = {
   },
   // GUITARRA 1: EPIPHONE
   {
-    // Banco "SOLOS" - Cambian a patches completos (PC) 
+    // Banco "LEAD" - Cambian a patches completos (PC) 
     {{'P', 0, 20}, {'P', 0, 21}, {'P', 0, 22}},
     // Banco "AMP" - Cambian a patches completos (PC)
     {{'P', 1, 34}, {'P', 1, 11}, {'P', 1, 12}},
