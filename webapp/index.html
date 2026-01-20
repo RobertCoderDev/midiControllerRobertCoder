@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Valeton GP-200 Controller Config</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>GP-200 Smart Controller</h1>
+            <div class="connection-status">
+                <span id="statusText">Desconectado</span>
+                <button id="btnConnect">🔌 Conectar USB/Serial</button>
+            </div>
+        </header>
+
+        <main id="mainPanel" class="disabled">
+            <div class="controls-top">
+                <button id="btnLoad">📥 Leer Configuración</button>
+
+                <!-- Bank Manager -->
+                <div class="bank-selector">
+                    <button id="btnPrevBank">◀</button>
+
+                    <div class="bank-info">
+                        <span id="lblBankIndex">Bank 0</span>
+                        <div class="input-group">
+                            <input type="text" id="txtBankName" maxlength="8" placeholder="BANK NAME">
+                            <button id="btnSaveBank" class="btn-mini">💾</button>
+                        </div>
+                    </div>
+
+                    <button id="btnNextBank">▶</button>
+                </div>
+            </div>
+
+            <div class="pedalboard">
+                <!-- Botón 1 -->
+                <div class="footswitch" data-index="0">
+                    <div class="fs-header">Preset 1</div>
+                    <input type="text" class="fs-name" maxlength="4" placeholder="NAME">
+
+                    <label>Tipo:</label>
+                    <select class="fs-type">
+                        <option value="P">Preset (PC)</option>
+                        <option value="D">Efecto (CC)</option>
+                    </select>
+
+                    <div class="fs-options-preset">
+                        <label>Bank:</label><input type="number" class="fs-val2-pc" min="0" max="99">
+                        <label>Prog:</label><input type="number" class="fs-val1-pc" min="0" max="99">
+                    </div>
+
+                    <div class="fs-options-dict" style="display:none;">
+                        <label>Efecto:</label>
+                        <select class="fs-val1-dict">
+                            <!-- Se llena con JS -->
+                        </select>
+                    </div>
+
+                    <button class="btn-save-slot">💾 Guardar</button>
+                </div>
+
+                <!-- Botón 2 -->
+                <div class="footswitch" data-index="1">
+                    <div class="fs-header">Preset 2</div>
+                    <input type="text" class="fs-name" maxlength="4" placeholder="NAME">
+                    <select class="fs-type">
+                        <option value="P">Preset (PC)</option>
+                        <option value="D">Efecto (CC)</option>
+                    </select>
+                    <div class="fs-options-preset">
+                        <label>Bank:</label><input type="number" class="fs-val2-pc" min="0" max="99">
+                        <label>Prog:</label><input type="number" class="fs-val1-pc" min="0" max="99">
+                    </div>
+                    <div class="fs-options-dict" style="display:none;">
+                        <label>Efecto:</label><select class="fs-val1-dict"></select>
+                    </div>
+                    <button class="btn-save-slot">💾 Guardar</button>
+                </div>
+
+                <!-- Botón 3 -->
+                <div class="footswitch" data-index="2">
+                    <div class="fs-header">Preset 3</div>
+                    <input type="text" class="fs-name" maxlength="4" placeholder="NAME">
+                    <select class="fs-type">
+                        <option value="P">Preset (PC)</option>
+                        <option value="D">Efecto (CC)</option>
+                    </select>
+                    <div class="fs-options-preset">
+                        <label>Bank:</label><input type="number" class="fs-val2-pc" min="0" max="99">
+                        <label>Prog:</label><input type="number" class="fs-val1-pc" min="0" max="99">
+                    </div>
+                    <div class="fs-options-dict" style="display:none;">
+                        <label>Efecto:</label><select class="fs-val1-dict"></select>
+                    </div>
+                    <button class="btn-save-slot">💾 Guardar</button>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="app.js"></script>
+</body>
+
+</html>
