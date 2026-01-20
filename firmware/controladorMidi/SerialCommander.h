@@ -78,7 +78,7 @@ class SerialCommander {
                 ButtonConfig* btn = _config->getButtonConfig(b, p);
                 if (btn) {
                     strncpy(btn->name, sName, 4);
-                    btn->name[4] = 0; 
+                    btn->name[4] = 0; // Ensure null term
                     btn->type = t;
                     btn->value1 = v1;
                     btn->value2 = v2;
@@ -112,6 +112,8 @@ class SerialCommander {
         _config = config;
         _btStream = btStream;
         _bufferIndex = 0;
+        // Inicializar buffer limpio
+        memset(_inputBuffer, 0, SC_BUFFER_SIZE);
     }
 
     bool update(Stream& port) {
@@ -122,21 +124,16 @@ class SerialCommander {
             // Visual Feedback: Blink LED on RX
             digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
             
-            // DEBUG EXTREME: Ver qué carajos llega
-            // port.print(F("DBGC:")); port.println((int)inChar);
-
             if (inChar == '\n' || inChar == '\r') {
                 // Al recibir Enter, procesamos
                 if (_bufferIndex > 0) {
                     _inputBuffer[_bufferIndex] = 0; // Null terminate
                     
-                    // DEBUG: Avisar que intentamos procesar
-                    // port.print(F("DBG:EOL_DETECTED:")); port.println(_inputBuffer);
-                    
                     if (processCommand(_inputBuffer, port)) {
                         changed = true;
                     }
                     _bufferIndex = 0;
+                    memset(_inputBuffer, 0, SC_BUFFER_SIZE); // Clean buffer after process
                 }
             } else {
                 if (_bufferIndex < SC_BUFFER_SIZE - 1) {
@@ -144,7 +141,8 @@ class SerialCommander {
                     _bufferIndex++;
                 } else {
                     // Buffer Overflow protection
-                     _bufferIndex = 0; // Reset safe
+                     _bufferIndex = 0; 
+                     memset(_inputBuffer, 0, SC_BUFFER_SIZE); // Force reset
                      port.println(F("ERR:BUFF_OVF"));
                 }
             }

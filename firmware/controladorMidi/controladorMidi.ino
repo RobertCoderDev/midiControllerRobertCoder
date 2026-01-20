@@ -36,14 +36,14 @@ const int BTN_GUITAR_CHANGE_PIN = 11;
 const int BTN_CTRL_2_PIN = 3;
 
 // Objetos Botones
-ButtonSimple btnBankDown(BTN_BANK_DOWN_PIN);
-ButtonSimple btnBankUp(BTN_BANK_UP_PIN);
-ButtonSimple btnToggle(BTN_TOGGLE_PIN);
-ButtonSimple btnPreset1(BTN_PRESET_1_PIN);
-ButtonSimple btnPreset2(BTN_PRESET_2_PIN);
-ButtonSimple btnPreset3(BTN_PRESET_3_PIN);
-ButtonSimple btnGuitarChange(BTN_GUITAR_CHANGE_PIN);
-ButtonSimple btnCtrl2(BTN_CTRL_2_PIN);
+Button btnBankDown(BTN_BANK_DOWN_PIN);
+Button btnBankUp(BTN_BANK_UP_PIN);
+Button btnToggle(BTN_TOGGLE_PIN);
+Button btnPreset1(BTN_PRESET_1_PIN);
+Button btnPreset2(BTN_PRESET_2_PIN);
+Button btnPreset3(BTN_PRESET_3_PIN);
+Button btnGuitarChange(BTN_GUITAR_CHANGE_PIN);
+Button btnCtrl2(BTN_CTRL_2_PIN);
 
 // Leds
 const int ledPins[] = {8, 9, 10}; 
@@ -192,10 +192,16 @@ void setup() {
     // inicializar MIDI primero (esto pone el puerto a 31250)
     MIDI.begin(1);
 
-    // Configuración BT (independiente del MIDI)
-    btSerial.begin(9600);  
+    // --- AUTO-CONFIG HC-06 ---
+    // Intentamos configurar el módulo por si viene de fábrica (9600)
+    btSerial.begin(9600); 
+    delay(500); 
+    btSerial.print("AT+NAMEMidiController"); delay(500); // Configurar Nombre
+    btSerial.print("AT+PIN1234");        delay(500); // Configurar PIN
+    btSerial.print("AT+BAUD6");          delay(500); // Configurar a 38400
     
-    // ... codigo de init bt ...
+    // Ahora iniciamos a la velocidad objetivo
+    btSerial.begin(38400);
     
     display.begin();
     display.showWelcome();
@@ -238,14 +244,14 @@ void loop() {
     // Cambios de Banco Global
     if (btnBankUp.pressed) {
         currentBank++;
-        if (currentBank >= NUM_BANKS_CFG) currentBank = 0; // Usar contante de ConfigManager
+        if (currentBank >= configManager.getActiveBanksCount()) currentBank = 0; // Usar limite dinámico
         inToggleView = false;
         refreshUI();
     }
     
     if (btnBankDown.pressed) {
         currentBank--;
-        if (currentBank < 0) currentBank = NUM_BANKS_CFG - 1;
+        if (currentBank < 0) currentBank = configManager.getActiveBanksCount() - 1;
         inToggleView = false;
         refreshUI();
     }

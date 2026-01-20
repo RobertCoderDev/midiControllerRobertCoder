@@ -35,6 +35,11 @@
                     </div>
 
                     <button id="btnNextBank">▶</button>
+                    
+                    <div class="bank-actions">
+                        <button id="btnAddBank" class="btn-mini-action" title="Agregar Banco">+</button>
+                        <button id="btnDelBank" class="btn-mini-action btn-danger" title="Borrar Banco">🗑️</button>
+                    </div>
                 </div>
             </div>
 
@@ -103,6 +108,30 @@
             </div>
         </main>
     </div>
+    <!-- Connection Modal -->
+    <div id="connectionModal" class="modal-overlay">
+        <div class="modal-box">
+            <h2>Selecciona Conexión</h2>
+            <div class="modal-buttons">
+                <button id="btnModeUSB" class="btn-mode">
+                    <span class="mode-icon">🔌</span>
+                    <div class="mode-text">
+                        <span class="mode-title">Cable USB</span>
+                        <span class="mode-desc">Standard MIDI (31250)</span>
+                    </div>
+                </button>
+                <button id="btnModeBT" class="btn-mode">
+                    <span class="mode-icon">📶</span>
+                    <div class="mode-text">
+                        <span class="mode-title">Bluetooth</span>
+                        <span class="mode-desc">High Speed (38400)</span>
+                    </div>
+                </button>
+            </div>
+            <button id="btnCancelConnect" class="btn-text">Cancelar</button>
+        </div>
+    </div>
+
     <script src="app.js"></script>
 </body>
 

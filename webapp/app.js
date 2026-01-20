@@ -21,11 +21,20 @@ let writer;
 let isConnected = false;
 
 // Estado local
-const NUM_BANKS = 8;
+// Estado local
+// const NUM_BANKS = 8; // YA NO ES FIJO
+let activeBanksCount = 0; // Se actualiza via Serial
 const NUM_PRESETS = 3;
 
 let configs = []; // Matriz [Bank][Preset]
 let bankNames = []; // Array de nombres de bancos
+
+// Inicializar matriz (se limpiará al recibir config)
+function resetLocalConfig() {
+    configs = [];
+    bankNames = [];
+    activeBanksCount = 0;
+}
 
 // Inicializar matriz vacía
 for (let b = 0; b < NUM_BANKS; b++) {
@@ -40,18 +49,44 @@ let currentBank = 0;
 
 document.addEventListener('DOMContentLoaded', () => {
     initUI();
-    document.getElementById('btnConnect').addEventListener('click', connectSerial);
-    document.getElementById('btnLoad').addEventListener('click', () => sendCommand("GETALL"));
+    
+    // Configurar Modal
+    const modal = document.getElementById('connectionModal');
+    const btnConnect = document.getElementById('btnConnect');
+    
+    btnConnect.addEventListener('click', () => {
+        modal.classList.add('active');
+    });
+
+    document.getElementById('btnCancelConnect').addEventListener('click', () => {
+        modal.classList.remove('active');
+    });
+
+    // Modos de Conexión
+    document.getElementById('btnModeUSB').addEventListener('click', () => {
+        modal.classList.remove('active');
+        connectSerial(31250); // Velocidad MIDI Standard
+    });
+
+    document.getElementById('btnModeBT').addEventListener('click', () => {
+        modal.classList.remove('active');
+        connectSerial(38400); // Velocidad BT Modificada
+    });
+
+
+    // document.getElementById('btnLoad').addEventListener('click', () => sendCommand("GETALL"));
+    // Reemplazado por lógica robusta:
+    document.getElementById('btnLoad').addEventListener('click', startConfigLoad);
 
     // Controles de Navegación
     document.getElementById('btnPrevBank').addEventListener('click', () => {
         currentBank--;
-        if (currentBank < 0) currentBank = NUM_BANKS - 1;
+        if (currentBank < 0) currentBank = activeBanksCount - 1;
         renderPedalboard();
     });
     document.getElementById('btnNextBank').addEventListener('click', () => {
         currentBank++;
-        if (currentBank >= NUM_BANKS) currentBank = 0;
+        if (currentBank >= activeBanksCount) currentBank = 0;
         renderPedalboard();
     });
 
@@ -59,6 +94,23 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btnSaveBank').addEventListener('click', () => {
         const name = document.getElementById('txtBankName').value.toUpperCase().substring(0, 8);
         saveBankName(currentBank, name);
+    });
+    
+    // Gestión Dinámica Bancos
+    document.getElementById('btnAddBank').addEventListener('click', () => {
+        if (confirm("¿Agregar un nuevo banco al final?")) {
+            sendCommand("ADDBANK");
+            // Esperar respuesta OK:BANK_ADDED que disparará recarga si implementamos refresh
+            // O podemos hacer un reload manual tras un delay
+            setTimeout(startConfigLoad, 500); 
+        }
+    });
+
+    document.getElementById('btnDelBank').addEventListener('click', () => {
+        if (confirm("¿BORRAR el último banco? Esta acción no se puede deshacer.")) {
+            sendCommand("DELBANK");
+            setTimeout(startConfigLoad, 500);
+        }
     });
 });
 
@@ -155,7 +207,7 @@ function showToast(message, type = 'success') {
 let textEncoder;
 let writableStreamClosed;
 
-async function connectSerial() {
+async function connectSerial(baudRate) {
     if (!navigator.serial) {
         showToast("WebSerial no soportado. Usa Chrome/Edge.", "error");
         return;
@@ -163,9 +215,9 @@ async function connectSerial() {
 
     try {
         port = await navigator.serial.requestPort();
-        // IMPORTANTE: 31250 es la velocidad MIDI standard.
-        // Si el Arduino usa MIDI.begin(), usa esta velocidad.
-        await port.open({ baudRate: 31250 });
+        
+        console.log(`Abriendo puerto a ${baudRate} baudios...`);
+        await port.open({ baudRate: baudRate });
 
         // Configurar Writer una sola vez
         textEncoder = new TextEncoderStream();
@@ -181,11 +233,14 @@ async function connectSerial() {
 
         // Escuchar
         readLoop();
+        
+        // Reset local data before sync
+        resetLocalConfig();
 
         // Handshake & Sync
         setTimeout(() => {
             sendCommand("HELLO");
-            sendCommand("GETALL");
+            startConfigLoad(); 
         }, 500);
 
     } catch (err) {
@@ -237,9 +292,10 @@ function parseSerialData(data) {
             if (parts.length >= 3) {
                 const id = parseInt(parts[1]);
                 const name = parts[2] || "";
-                if (id >= 0 && id < NUM_BANKS) {
-                    bankNames[id] = name;
-                }
+                
+                // Expandir arrays si es necesario
+                if (id >= activeBanksCount) activeBanksCount = id + 1;
+                bankNames[id] = name;
             }
 
         } else if (line.startsWith("DATA:")) {
@@ -260,12 +316,23 @@ function parseSerialData(data) {
             }
         } else if (line.startsWith("END:CONFIG")) {
             renderPedalboard();
-            showToast("Configuración Sincronizada");
+            // Lógica de éxito para el loader
+            stopConfigLoad(true);
+            // showToast("Configuración Sincronizada"); // Ya lo hace stopConfigLoad
         } else if (line.startsWith("OK:SAVED")) {
             showToast("Botón Guardado");
         } else if (line.startsWith("OK:BANK_RENAMED")) {
             showToast("Banco Renombrado");
             bankNames[currentBank] = document.getElementById('txtBankName').value.toUpperCase();
+        } else if (line.startsWith("OK:BANK_ADDED")) {
+            showToast("Banco Agregado - Recargando...");
+             // startConfigLoad(); // Triggered by button, but good backup 
+        } else if (line.startsWith("OK:BANK_REMOVED")) {
+            showToast("Banco Eliminado - Recargando...");
+        } else if (line.startsWith("ERR:MAX_BANKS")) {
+             showToast("Límite de Bancos Alcanzado", "error");
+        } else if (line.startsWith("ERR:MIN_BANKS")) {
+             showToast("No se puede borrar el último banco", "error");
         } else if (line.startsWith("READY:")) {
             console.log("Pedal Ready");
             showToast("Pedal Listo ✅");
@@ -287,12 +354,23 @@ async function sendCommand(cmd) {
 }
 
 function renderPedalboard() {
-    document.getElementById('lblBankIndex').textContent = `BANK ${currentBank}`;
+    // Validar limites actuales
+    if (activeBanksCount == 0) return; // Nada cargado aun
+    if (currentBank >= activeBanksCount) currentBank = activeBanksCount - 1;
+    
+    document.getElementById('lblBankIndex').textContent = `BANK ${currentBank} / ${activeBanksCount -1}`;
     const nameInput = document.getElementById('txtBankName');
     if (nameInput) nameInput.value = bankNames[currentBank] || "";
+    
+    // Habilitar/Deshabilitar botón borrar
+    const btnDel = document.getElementById('btnDelBank');
+    if (activeBanksCount <= 1) btnDel.classList.add('disabled');
+    else btnDel.classList.remove('disabled');
 
     // Update Slots
     for (let i = 0; i < 3; i++) {
+        if (!configs[currentBank]) configs[currentBank] = []; // Safety
+        
         const data = configs[currentBank][i];
         const el = document.querySelector(`.footswitch[data-index="${i}"]`);
 
@@ -344,6 +422,7 @@ function getSlotData(el) {
     };
 }
 
+
 function saveSlot(data) {
     // SAVE:B:P:NAME:TYPE:V1:V2
     const cmd = `SAVE:${data.b}:${data.p}:${data.name}:${data.type}:${data.v1}:${data.v2}`;
@@ -364,4 +443,54 @@ function saveBankName(bankIdx, name) {
     const cmd = `SAVEBANK:${bankIdx}:${name}`;
     console.log("TX:", cmd);
     sendCommand(cmd);
+}
+
+// --- CONFIG LOAD RETRY LOGIC ---
+let configLoadTimer = null;
+let configTimeoutInfo = null;
+let isConfigLoading = false;
+
+function startConfigLoad() {
+    if (isConfigLoading) return;
+    
+    isConfigLoading = true;
+    const btn = document.getElementById('btnLoad');
+    const originalText = btn.innerHTML;
+    
+    btn.classList.add('loading');
+    btn.innerHTML = "Leyendo..."; // Spinner agregado por CSS
+    
+    // 1. Envío inicial
+    sendCommand("GETALL");
+    
+    // 2. Setup Retry Loop (cada 2 segundos)
+    configLoadTimer = setInterval(() => {
+        console.log("Re-intentando leer configuración...");
+        sendCommand("GETALL");
+    }, 2000);
+    
+    // 3. Setup Max Timeout (10 segundos)
+    configTimeoutInfo = setTimeout(() => {
+        stopConfigLoad(false); // Fail
+        showToast("Tiempo de espera agotado. Verifica conexión.", "error");
+    }, 10000);
+}
+
+function stopConfigLoad(success) {
+    if (!isConfigLoading) return;
+    
+    isConfigLoading = false;
+    const btn = document.getElementById('btnLoad');
+    
+    // Limpiar Timers
+    if (configLoadTimer) clearInterval(configLoadTimer);
+    if (configTimeoutInfo) clearTimeout(configTimeoutInfo);
+    
+    // Reset UI
+    btn.classList.remove('loading');
+    btn.innerHTML = "📥 Leer Configuración"; // Restaurar texto
+    
+    if (success) {
+        showToast("Configuración Sincronizada ✅");
+    }
 }
