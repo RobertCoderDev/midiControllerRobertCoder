@@ -28,9 +28,22 @@ class SerialCommander {
             delay(5);
         }
 
+        // 2b. Enviar Datos Globales
+        // Protocolo: DATAGLO:ID:NAME:TYPE:V1:V2
+        for(int i=0; i<2; i++) {
+             ButtonConfig* btn = _config->getGlobalConfig(i);
+                port.print(F("DATAGLO:"));
+                port.print(i); port.print(F(":"));
+                port.print(btn->name); port.print(F(":"));
+                port.print(btn->type); port.print(F(":"));
+                port.print(btn->value1); port.print(F(":"));
+                port.println(btn->value2);
+                delay(5);
+        }
+
         // 2. Enviar Datos de Botones
         // Protocolo: DATA:B:P:NAME:TYPE:V1:V2
-        for (int b = 0; b < NUM_BANKS_CFG; b++) {
+        for (int b = 0; b < _config->getActiveBanksCount(); b++) { // Use active
             for (int p = 0; p < NUM_PRESETS_CFG; p++) {
                 ButtonConfig* btn = _config->getButtonConfig(b, p);
                 port.print(F("DATA:"));
@@ -58,6 +71,22 @@ class SerialCommander {
         } else if (strcmp(token, "GETALL") == 0) {
             sendAllConfig(port);
             return false;
+        
+        } else if (strcmp(token, "ADDBANK") == 0) {
+             if (_config->addBank()) {
+                 port.println(F("OK:BANK_ADDED"));
+             } else {
+                 port.println(F("ERR:MAX_BANKS"));
+             }
+             return true; 
+             
+        } else if (strcmp(token, "DELBANK") == 0) {
+             if (_config->removeBank()) {
+                 port.println(F("OK:BANK_REMOVED"));
+             } else {
+                 port.println(F("ERR:MIN_BANKS"));
+             }
+             return true;
             
         } else if (strcmp(token, "SAVE") == 0) {
             // SAVE:B:P:NAME:TYPE:V1:V2
@@ -89,6 +118,35 @@ class SerialCommander {
                 } 
             }
             port.println(F("ERR:SAVE_FAIL"));
+
+        } else if (strcmp(token, "SAVEGLO") == 0) {
+            // SAVEGLO:ID:NAME:TYPE:V1:V2
+            char* sID     = strtok(NULL, ":");
+            char* sName   = strtok(NULL, ":");
+            char* sType   = strtok(NULL, ":");
+            char* sVal1   = strtok(NULL, ":");
+            char* sVal2   = strtok(NULL, ":");
+            
+            if (sID && sName && sType && sVal1 && sVal2) {
+                int id = atoi(sID);
+                char t = sType[0];
+                int v1 = atoi(sVal1);
+                int v2 = atoi(sVal2);
+                
+                ButtonConfig* btn = _config->getGlobalConfig(id);
+                if (btn) {
+                    strncpy(btn->name, sName, 4);
+                    btn->name[4] = 0; 
+                    btn->type = t;
+                    btn->value1 = v1;
+                    btn->value2 = v2;
+                    
+                    _config->save();
+                    port.println(F("OK:SAVED_GLO"));
+                    return true; 
+                } 
+            }
+            port.println(F("ERR:SAVE_GLO_FAIL"));
 
         } else if (strcmp(token, "SAVEBANK") == 0) {
              // SAVEBANK:B:NAME

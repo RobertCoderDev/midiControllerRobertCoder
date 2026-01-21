@@ -31,6 +31,9 @@ class ConfigManager {
     // Reservamos memoria para el máximo posible
     ButtonConfig configs[MAX_BANKS_CFG][NUM_PRESETS_CFG];
     
+    // Configuraciones Globales (0=Lateral/Guitar, 1=Central/Ctrl2)
+    ButtonConfig globalConfigs[2];
+    
     // Nombres de Bancos (Max 8 chars + null)
     char bankNames[MAX_BANKS_CFG][9];
 
@@ -61,12 +64,18 @@ class ConfigManager {
         if (_activeBanks < 1) _activeBanks = 1;
         if (_activeBanks > MAX_BANKS_CFG) _activeBanks = MAX_BANKS_CFG;
 
-        // Cargar Botones
+        // Cargar Botones de Banco
         for (int b = 0; b < MAX_BANKS_CFG; b++) {
             for (int p = 0; p < NUM_PRESETS_CFG; p++) {
                 EEPROM.get(addr, configs[b][p]);
                 addr += sizeof(ButtonConfig);
             }
+        }
+        
+        // Cargar Globales
+        for (int i = 0; i < 2; i++) {
+            EEPROM.get(addr, globalConfigs[i]);
+            addr += sizeof(ButtonConfig);
         }
         
         // Cargar Nombres de Banco
@@ -78,9 +87,9 @@ class ConfigManager {
 
     void save() {
         int addr = _eepromStartAddress;
+        // Magic + Count
         EEPROM.put(addr, EEPROM_MAGIC);
         addr += sizeof(int);
-        
         EEPROM.put(addr, _activeBanks);
         addr += sizeof(int);
         
@@ -90,6 +99,12 @@ class ConfigManager {
                 EEPROM.put(addr, configs[b][p]);
                 addr += sizeof(ButtonConfig);
             }
+        }
+        
+        // Guardar Globales
+        for (int i = 0; i < 2; i++) {
+            EEPROM.put(addr, globalConfigs[i]);
+            addr += sizeof(ButtonConfig);
         }
         
         // Guardar Nombres de Banco
@@ -106,6 +121,19 @@ class ConfigManager {
         for (int b = 0; b < MAX_BANKS_CFG; b++) {
             initBank(b);
         }
+        
+        // Init Global Defaults
+        // 0: Lateral (Antes Guitar) -> Default PC ?? or Empty
+        snprintf(globalConfigs[0].name, 5, "LAT");
+        globalConfigs[0].type = 'P'; 
+        globalConfigs[0].value1 = 0; 
+        globalConfigs[0].value2 = 0;
+        
+        // 1: Central (Antes Ctrl2) -> Default
+        snprintf(globalConfigs[1].name, 5, "CEN");
+        globalConfigs[1].type = 'P'; 
+        globalConfigs[1].value1 = 0; 
+        globalConfigs[1].value2 = 0;
     }
     
     void initBank(int b) {
@@ -148,6 +176,14 @@ class ConfigManager {
         if (bank >= 0 && bank < MAX_BANKS_CFG && 
             preset >= 0 && preset < NUM_PRESETS_CFG) {
             return &configs[bank][preset];
+        }
+        return nullptr;
+    }
+    
+    // Accessor para globales
+    ButtonConfig* getGlobalConfig(int index) {
+        if (index >= 0 && index < 2) {
+            return &globalConfigs[index];
         }
         return nullptr;
     }

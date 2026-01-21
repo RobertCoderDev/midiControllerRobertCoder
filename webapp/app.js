@@ -298,6 +298,32 @@ function parseSerialData(data) {
                 bankNames[id] = name;
             }
 
+        } else if (line.startsWith("DATAGLO:")) {
+            // DATAGLO:ID:NAME:TYPE:V1:V2
+            const parts = line.split(":");
+            if (parts.length >= 6) {
+                const id = parseInt(parts[1]);
+                const name = parts[2];
+                const type = parts[3];
+                const v1 = parseInt(parts[4]);
+                const v2 = parseInt(parts[5]);
+                
+                // Update UI directly
+                const card = document.querySelector(`.global-card[data-id="${id}"]`);
+                if (card) {
+                    card.querySelector('.gc-name').value = name;
+                    card.querySelector('.gc-type').value = type;
+                    card.querySelector('.gc-type').dispatchEvent(new Event('change')); // Trigger visibility
+                    
+                    if (type === 'P') {
+                        card.querySelector('.gc-v1').value = v1;
+                        card.querySelector('.gc-v2').value = v2;
+                    } else {
+                        card.querySelector('.gc-val-dict').value = v1;
+                    }
+                }
+            }
+            
         } else if (line.startsWith("DATA:")) {
             // DATA:B:P:NAME:TYPE:V1:V2 (NO GUITAR)
             const parts = line.split(":");
@@ -476,6 +502,13 @@ function startConfigLoad() {
     }, 10000);
 }
 
+    // 3. Setup Max Timeout (10 segundos)
+    configTimeoutInfo = setTimeout(() => {
+        stopConfigLoad(false); // Fail
+        showToast("Tiempo de espera agotado. Verifica conexión.", "error");
+    }, 10000);
+}
+
 function stopConfigLoad(success) {
     if (!isConfigLoading) return;
     
@@ -492,5 +525,61 @@ function stopConfigLoad(success) {
     
     if (success) {
         showToast("Configuración Sincronizada ✅");
+        // Habilitar panel global también
+        document.getElementById('globalPanel').classList.remove('disabled');
     }
 }
+
+// --- GLOBAL LOGIC ---
+const globalConfigs = [{}, {}]; // ID 0 and 1
+
+function initGlobalUI() {
+    // Reusar lógica de selects de efectos (ya poblados por clase fs-val1-dict)
+    
+    // Listeners Change Type
+    document.querySelectorAll('.gc-type').forEach(sel => {
+        sel.addEventListener('change', (e) => {
+             const card = e.target.closest('.global-card');
+             const val = e.target.value;
+             if (val === 'P') {
+                 card.querySelector('.gc-options-preset').style.display = 'flex';
+                 card.querySelector('.gc-options-dict').style.display = 'none';
+             } else {
+                 card.querySelector('.gc-options-preset').style.display = 'none';
+                 card.querySelector('.gc-options-dict').style.display = 'block';
+             }
+        });
+    });
+
+    // Listeners Save
+    document.querySelectorAll('.btn-save-global').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const card = e.target.closest('.global-card');
+            const id = card.dataset.id;
+            
+            const name = card.querySelector('.gc-name').value.toUpperCase();
+            const type = card.querySelector('.gc-type').value;
+            let v1 = 0, v2 = 0;
+            
+            if (type === 'P') {
+                v1 = card.querySelector('.gc-v1').value || 0;
+                v2 = card.querySelector('.gc-v2').value || 0;
+            } else {
+                const sel = card.querySelector('.gc-val-dict select'); 
+                // Nota: la estructura HTML de arriba era simplificada, 
+                // la clase es .gc-val-dict y ADENTRO podría estar el select o ser el select.
+                // Revisando HTML insertado: <select class="gc-val-dict fs-val1-dict">
+                v1 = card.querySelector('.gc-val-dict').value; 
+            }
+            
+            // SAVEGLO:ID:NAME:TYPE:V1:V2
+            const cmd = `SAVEGLO:${id}:${name}:${type}:${v1}:${v2}`;
+            console.log("TX GLO:", cmd);
+            sendCommand(cmd);
+        });
+    });
+}
+// Llamar esto en initUI() o DOMContentLoaded
+document.addEventListener('DOMContentLoaded', () => {
+    initGlobalUI(); // ...existing code...
+});

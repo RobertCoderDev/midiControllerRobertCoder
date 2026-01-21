@@ -125,6 +125,70 @@
                 </div>
             </div>
         </main>
+        
+        <!-- Global Settings Section (New) -->
+        <section id="globalPanel" class="disabled glass-panel" style="margin-top: 20px; padding: 20px;">
+            <h2 style="margin-top:0; color:var(--neon-blue); border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:10px;">CONFIGURACIÓN GLOBAL</h2>
+            <div class="global-grid">
+                <!-- Lateral Izquierdo (Antes Guitar) -->
+                <div class="global-card" data-id="0">
+                    <div class="gc-header">
+                        <span class="gc-icon">⬅️</span> 
+                        Botón Lateral Izq
+                    </div>
+                    <div class="gc-body">
+                         <div class="input-row">
+                             <label>Nombre:</label>
+                             <input type="text" class="gc-name" maxlength="4" value="LAT">
+                         </div>
+                         <div class="input-row">
+                             <label>Tipo:</label>
+                             <select class="gc-type">
+                                <option value="P">Preset</option>
+                                <option value="D">Efecto</option>
+                             </select>
+                         </div>
+                         <div class="gc-options-preset">
+                             <input type="number" class="gc-v2" placeholder="Bank">
+                             <input type="number" class="gc-v1" placeholder="Prog">
+                         </div>
+                         <div class="gc-options-dict" style="display:none">
+                             <select class="gc-val-dict fs-val1-dict"></select>
+                         </div>
+                         <button class="btn-save-global">💾 Guardar</button>
+                    </div>
+                </div>
+
+                <!-- Central Superior (Antes Ctrl2) -->
+                <div class="global-card" data-id="1">
+                    <div class="gc-header">
+                        <span class="gc-icon">⬆️</span> 
+                        Botón Central Sup
+                    </div>
+                    <div class="gc-body">
+                         <div class="input-row">
+                             <label>Nombre:</label>
+                             <input type="text" class="gc-name" maxlength="4" value="CEN">
+                         </div>
+                         <div class="input-row">
+                             <label>Tipo:</label>
+                             <select class="gc-type">
+                                <option value="P">Preset</option>
+                                <option value="D">Efecto</option>
+                             </select>
+                         </div>
+                         <div class="gc-options-preset">
+                             <input type="number" class="gc-v2" placeholder="Bank">
+                             <input type="number" class="gc-v1" placeholder="Prog">
+                         </div>
+                         <div class="gc-options-dict" style="display:none">
+                             <select class="gc-val-dict fs-val1-dict"></select>
+                         </div>
+                         <button class="btn-save-global">💾 Guardar</button>
+                    </div>
+                </div>
+            </div>
+        </section>
     </div>
     <!-- Connection Modal -->
     <div id="connectionModal" class="modal-overlay">

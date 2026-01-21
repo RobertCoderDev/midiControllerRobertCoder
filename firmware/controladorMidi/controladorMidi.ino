@@ -185,6 +185,35 @@ void handleToggle() {
 
 // --- SETUP & LOOP ---
 
+void triggerGlobalAction(int globalId) {
+    ButtonConfig* cmd = configManager.getGlobalConfig(globalId);
+    if (!cmd) return;
+
+    // Interpretamos la configuración
+    if (cmd->type == 'P') {
+        // --- PRESET MODE ---
+        MIDI.sendControlChange(0, cmd->value2, 1);
+        MIDI.sendProgramChange(cmd->value1, 1);
+    } else if (cmd->type == 'D') {
+        // --- EFFECT MODE ---
+        // Para botones globales, toggleamos un estado interno local o simplemente enviamos trigger?
+        // Como son "extra", asumiremos TOGGLE simple con estado efímero o trigger.
+        // Simulamos toggle de 127/0 en cada pulsacion?
+        // Mejor enviar 127 siempre (trigger) o CC value fijo?
+        // El formato standard: value1=IndexDict.
+        int cc = getCCFromDict(cmd->value1);
+        // Enviamos toggle simple ciego: ON -> OFF (simulado con var estatica o simplemente 127??)
+        // Por simplicidad en globales, mandamos 127 (ON). El usuario puede querer controlar loops.
+        // Si queremos estado real necesitamos var de estado global.
+        // Vamos a usar una estática fea aquí por ahora.
+        static bool gState[2] = {false, false};
+        gState[globalId] = !gState[globalId];
+        MIDI.sendControlChange(cc, gState[globalId] ? 127 : 0, 1);
+    }
+}
+
+// --- SETUP & LOOP ---
+
 void setup() {
     pinMode(LED_BUILTIN, OUTPUT); 
     digitalWrite(LED_BUILTIN, LOW);
@@ -238,6 +267,8 @@ void loop() {
     btnPreset1.update();
     btnPreset2.update();
     btnPreset3.update();
+    btnGuitarChange.update(); // Add update
+    btnCtrl2.update();        // Add update
     
     // 3. LOGICA PERFORMANCE
     
@@ -265,4 +296,8 @@ void loop() {
     if (btnPreset1.pressed) triggerMidiAction(0);
     if (btnPreset2.pressed) triggerMidiAction(1);
     if (btnPreset3.pressed) triggerMidiAction(2);
+    
+    // Globales
+    if (btnGuitarChange.pressed) triggerGlobalAction(0); // ID 0
+    if (btnCtrl2.pressed)        triggerGlobalAction(1); // ID 1
 }
