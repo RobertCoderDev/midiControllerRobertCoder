@@ -126,6 +126,27 @@ function initUI() {
         });
     });
 
+    // Listeners para Toggle Tipo LP
+    document.querySelectorAll('.fs-lp-type').forEach((sel) => {
+        sel.addEventListener('change', (e) => {
+            const container = sel.closest('.lp-container');
+            const type = e.target.value;
+            
+            // Ocultar todos
+            container.querySelector('.lp-opt-p').style.display = 'none';
+            container.querySelector('.lp-opt-c').style.display = 'none';
+            container.querySelector('.lp-opt-d').style.display = 'none';
+
+            if (type === 'P') {
+                container.querySelector('.lp-opt-p').style.display = 'flex';
+            } else if (type === 'C') {
+                container.querySelector('.lp-opt-c').style.display = 'flex';
+            } else if (type === 'D') {
+                container.querySelector('.lp-opt-d').style.display = 'block';
+            }
+        });
+    });
+
     // Listeners para Toggle Tipo
     document.querySelectorAll('.fs-type').forEach((sel, idx) => {
         sel.addEventListener('change', (e) => {
@@ -333,11 +354,25 @@ function parseSerialData(data) {
 
                 if (!configs[b]) configs[b] = [];
 
+                let lpType = 'N';
+                let lpV1 = 0;
+                let lpV2 = 0;
+
+                // Check for new Long Press params
+                if (parts.length >= 10) {
+                    lpType = parts[7];
+                    lpV1 = parseInt(parts[8]);
+                    lpV2 = parseInt(parts[9]);
+                }
+
                 configs[b][p] = {
                     name: parts[3],
                     type: parts[4],
                     val1: parseInt(parts[5]),
-                    val2: parseInt(parts[6])
+                    val2: parseInt(parts[6]),
+                    lpType: lpType,
+                    lpV1: lpV1,
+                    lpV2: lpV2
                 };
             }
         } else if (line.startsWith("END:CONFIG")) {
@@ -420,6 +455,21 @@ function renderPedalboard() {
         } else {
             el.querySelector('.fs-val1-dict').value = data.val1;
         }
+
+        // --- Update Long Press UI ---
+        const lpSel = el.querySelector('.fs-lp-type');
+        lpSel.value = data.lpType || 'N';
+        lpSel.dispatchEvent(new Event('change')); // Update visibility
+
+        if (data.lpType === 'P') {
+            el.querySelector('.fs-lp-v1-p').value = data.lpV1;
+            el.querySelector('.fs-lp-v2-p').value = data.lpV2;
+        } else if (data.lpType === 'C') {
+             el.querySelector('.fs-lp-v1-c').value = data.lpV1;
+             el.querySelector('.fs-lp-v2-c').value = data.lpV2;
+        } else if (data.lpType === 'D') {
+             el.querySelector('.fs-lp-val-d').value = data.lpV1;
+        }
     }
 }
 
@@ -438,20 +488,38 @@ function getSlotData(el) {
         v1 = el.querySelector('.fs-val1-dict').value;
     }
 
+    // LP Params
+    const lpType = el.querySelector('.fs-lp-type').value;
+    let lpV1 = 0;
+    let lpV2 = 0;
+
+    if (lpType === 'P') {
+        lpV1 = el.querySelector('.fs-lp-v1-p').value;
+        lpV2 = el.querySelector('.fs-lp-v2-p').value;
+    } else if (lpType === 'C') {
+        lpV1 = el.querySelector('.fs-lp-v1-c').value;
+        lpV2 = el.querySelector('.fs-lp-v2-c').value;
+    } else if (lpType === 'D') {
+        lpV1 = el.querySelector('.fs-lp-val-d').value;
+    }
+
     return {
         b: currentBank,
         p: idx,
         name: name,
         type: type,
-        v1: v1,
-        v2: v2
+        v1: v1 || 0,
+        v2: v2 || 0,
+        lpType: lpType,
+        lpV1: lpV1 || 0,
+        lpV2: lpV2 || 0
     };
 }
 
 
 function saveSlot(data) {
-    // SAVE:B:P:NAME:TYPE:V1:V2
-    const cmd = `SAVE:${data.b}:${data.p}:${data.name}:${data.type}:${data.v1}:${data.v2}`;
+    // SAVE:B:P:NAME:TYPE:V1:V2:LPT:LPV1:LPV2
+    const cmd = `SAVE:${data.b}:${data.p}:${data.name}:${data.type}:${data.v1}:${data.v2}:${data.lpType}:${data.lpV1}:${data.lpV2}`;
     console.log("TX:", cmd);
     sendCommand(cmd);
 
@@ -460,7 +528,10 @@ function saveSlot(data) {
         name: data.name,
         type: data.type,
         val1: parseInt(data.v1),
-        val2: parseInt(data.v2)
+        val2: parseInt(data.v2),
+        lpType: data.lpType,
+        lpV1: parseInt(data.lpV1),
+        lpV2: parseInt(data.lpV2)
     };
 }
 
@@ -502,12 +573,7 @@ function startConfigLoad() {
     }, 10000);
 }
 
-    // 3. Setup Max Timeout (10 segundos)
-    configTimeoutInfo = setTimeout(() => {
-        stopConfigLoad(false); // Fail
-        showToast("Tiempo de espera agotado. Verifica conexión.", "error");
-    }, 10000);
-}
+
 
 function stopConfigLoad(success) {
     if (!isConfigLoading) return;

@@ -79,6 +79,7 @@ h1 {
     font-weight: 700;
     background: linear-gradient(to right, var(--neon-blue), var(--neon-purple));
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
     text-shadow: 0 0 20px rgba(188, 19, 254, 0.3);
 }
@@ -611,6 +612,47 @@ label {
     color: white;
     box-shadow: none;
     text-decoration: underline;
+}
+
+
+
+/* --- Long Press Styles (Compact) --- */
+.lp-separator {
+    margin-top: 15px;
+    margin-bottom: 5px;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--neon-blue);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding-top: 8px;
+    text-align: center;
+    opacity: 0.7;
+}
+
+.lp-container {
+    background: rgba(0, 0, 0, 0.2);
+    padding: 0px;
+    border-radius: 6px;
+    /* Compact container */
+}
+
+.fs-lp-type {
+    width: 100%;
+    margin-bottom: 5px;
+    font-size: 0.75rem;
+    /* Smaller font */
+    padding: 4px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #ccc;
+    border-radius: 4px;
+}
+
+.lp-options input {
+    font-size: 0.8rem;
+    padding: 2px 5px;
+    background: rgba(0, 0, 0, 0.4);
 }
 
 /* Global Settings Styles */

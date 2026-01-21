@@ -68,6 +68,16 @@ class Button {
 
       _lastReading = reading;
     }
+
+    // Nuevo método para verificar si el botón está mantenido pulsado (sin debounce complex)
+    // Útil para scroll continuo
+    bool isDown() {
+        return _state == LOW;
+    }
+
+    bool isLongPressedState() {
+        return _isLongPressed;
+    }
 };
 
 #endif

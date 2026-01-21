@@ -6,11 +6,15 @@
 
 // Definición de Configuración por Botón
 struct ButtonConfig {
-    char name[5];     // Nombre de 4 letras + null terminator (ej. "SOLO")
+    char name[5];     // Nombre de 4 letras + null terminator
     char type;        // 'P' (Preset), 'D' (Dictionary/Effect), 'C' (Custom raw CC)
     byte value1;      // Si 'P': ProgramNum. Si 'D': DictIndex. Si 'C': CC Number.
     byte value2;      // Si 'P': BankNum. Si 'C': Value (0=Toggle).
-    // Nota: Para simplificar, en 'D' (Dict) asumimos toggle (0/127) o trigger (127) según lógica.
+    
+    // --- NUEVO: Configuración Long Press ---
+    char lpType;      // 'N' (None), 'C' (CC), 'P' (Program), 'D' (Dict)
+    byte lpValue1;
+    byte lpValue2;
 };
 
 // Estructura global de datos
@@ -19,7 +23,8 @@ const int MAX_BANKS_CFG = 10; // LIMITE MAXIMO 10
 const int NUM_PRESETS_CFG = 3; 
 
 // Magic number actualizado para forzar reset de estructura
-const int EEPROM_MAGIC = 12348; // Bump version for dynamic banks
+// Magic number actualizado para forzar reset de estructura por nuevos campos LP
+const int EEPROM_MAGIC = 12349; // Bump version for Long Press Support
 
 class ConfigManager {
   private:
@@ -128,12 +133,18 @@ class ConfigManager {
         globalConfigs[0].type = 'P'; 
         globalConfigs[0].value1 = 0; 
         globalConfigs[0].value2 = 0;
+        globalConfigs[0].lpType = 'N'; 
+        globalConfigs[0].lpValue1 = 0;
+        globalConfigs[0].lpValue2 = 0;
         
         // 1: Central (Antes Ctrl2) -> Default
         snprintf(globalConfigs[1].name, 5, "CEN");
         globalConfigs[1].type = 'P'; 
         globalConfigs[1].value1 = 0; 
         globalConfigs[1].value2 = 0;
+        globalConfigs[1].lpType = 'N';
+        globalConfigs[1].lpValue1 = 0;
+        globalConfigs[1].lpValue2 = 0;
     }
     
     void initBank(int b) {
@@ -142,7 +153,12 @@ class ConfigManager {
             snprintf(configs[b][p].name, 5, "P%d-%d", b, p);
             configs[b][p].type = 'P';
             configs[b][p].value1 = (b * 3) + p; 
-            configs[b][p].value2 = 0;       
+            configs[b][p].value2 = 0;
+            
+            // Init Long Press (None by default)
+            configs[b][p].lpType = 'N'; 
+            configs[b][p].lpValue1 = 0;
+            configs[b][p].lpValue2 = 0;       
         }
     }
     

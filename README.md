@@ -74,13 +74,14 @@ El módulo HC-06 se autoconfigurará al encenderse conectado a los pines definid
 
 ---
 
-## 🎮 Manual de Operación
+### 🎮 Manual de Operación
 
-| Acción | Resultado |
-| :--- | :--- |
-| **Pulsación Corta** | Envía el comando MIDI asignado (PC o CC) y muestra info en LCD. |
-| **Pulsación Larga** | Alterna modos especiales (si aplica) o funciones secundarias. |
-| **Navegación** | Botones dedicados `Bank Up` / `Bank Down` (navega solo por bancos activos). |
+| Control | Acción Corta (Click) | Acción Larga (Hold > 800ms) |
+| :--- | :--- | :--- |
+| **Bank Up / Down** | Cambia 1 Banco | **Scroll Rápido** (Sube/Baja bancos continuamente) |
+| **Toggle** | Preset Anterior (Swap) | **Afinador** (Envía CC #68 Value 127) |
+| **Presets 1-3** | Acción Principal (PC/Efecto) | **Acción Secundaria** (Configurable en App: PC/CC/Fx) |
+
 
 ---
 

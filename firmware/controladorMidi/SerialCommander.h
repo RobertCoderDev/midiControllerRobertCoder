@@ -6,7 +6,7 @@
 #include "ConfigManager.h"
 
 // Buffer para entrada serial
-const int SC_BUFFER_SIZE = 50;
+const int SC_BUFFER_SIZE = 80;
 
 class SerialCommander {
   private:
@@ -52,7 +52,10 @@ class SerialCommander {
                 port.print(btn->name); port.print(F(":"));
                 port.print(btn->type); port.print(F(":"));
                 port.print(btn->value1); port.print(F(":"));
-                port.println(btn->value2);
+                port.print(btn->value2); port.print(F(":"));
+                port.print(btn->lpType); port.print(F(":"));
+                port.print(btn->lpValue1); port.print(F(":"));
+                port.println(btn->lpValue2);
                 delay(5);
             }
         }
@@ -89,13 +92,17 @@ class SerialCommander {
              return true;
             
         } else if (strcmp(token, "SAVE") == 0) {
-            // SAVE:B:P:NAME:TYPE:V1:V2
+            // SAVE:B:P:NAME:TYPE:V1:V2:LPT:LPV1:LPV2
             char* sBank   = strtok(NULL, ":");
             char* sPreset = strtok(NULL, ":");
             char* sName   = strtok(NULL, ":");
             char* sType   = strtok(NULL, ":");
             char* sVal1   = strtok(NULL, ":");
             char* sVal2   = strtok(NULL, ":");
+            // Optional/New args
+            char* sLpType = strtok(NULL, ":");
+            char* sLpV1   = strtok(NULL, ":");
+            char* sLpV2   = strtok(NULL, ":");
             
             if (sBank && sPreset && sName && sType && sVal1 && sVal2) {
                 int b = atoi(sBank);
@@ -111,6 +118,18 @@ class SerialCommander {
                     btn->type = t;
                     btn->value1 = v1;
                     btn->value2 = v2;
+                    
+                    // Update LP fields if provided
+                    if (sLpType && sLpV1 && sLpV2) {
+                        btn->lpType = sLpType[0];
+                        btn->lpValue1 = atoi(sLpV1);
+                        btn->lpValue2 = atoi(sLpV2);
+                    } else {
+                        // Default if missing
+                        btn->lpType = 'N';
+                        btn->lpValue1 = 0;
+                        btn->lpValue2 = 0;
+                    }
                     
                     _config->save();
                     port.println(F("OK:SAVED"));

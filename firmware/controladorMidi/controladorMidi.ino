@@ -76,7 +76,13 @@ bool inToggleView = false;
 
 // Estados adicionales
 bool ctrl2Status = false;
+// Estados adicionales
+bool ctrl2Status = false;
 bool ledStates[3] = {false, false, false}; 
+
+// --- SCROLL CONTROL ---
+unsigned long lastScrollTime = 0;
+const unsigned long SCROLL_DELAY = 250; // ms entre saltos de banco 
 
 // --- FUNCIONES AUXILIARES (Lógica de Negocio) ---
 
@@ -157,6 +163,28 @@ void triggerMidiAction(int presetIndex) {
     }
     
     refreshUI();
+    refreshUI();
+}
+
+void triggerLongPressAction(int presetIndex) {
+    ButtonConfig* cmd = configManager.getButtonConfig(currentBank, presetIndex);
+    if (!cmd) return;
+
+    if (cmd->lpType == 'N') return; // Sin acción
+
+    if (cmd->lpType == 'C') {
+        // CC Custom
+        MIDI.sendControlChange(cmd->lpValue1, cmd->lpValue2, 1);
+    } else if (cmd->lpType == 'P') {
+        // Program Change (Bank LSB only? Or just PC)
+        // Usamos Value1=PC, Value2=Bank
+        MIDI.sendControlChange(0, cmd->lpValue2, 1);
+        MIDI.sendProgramChange(cmd->lpValue1, 1);
+    } else if (cmd->lpType == 'D') {
+        // Dict Effect
+        int cc = getCCFromDict(cmd->lpValue1);
+        MIDI.sendControlChange(cc, 127, 1); // Trigger ON
+    }
 }
 
 void handleToggle() {
@@ -273,9 +301,10 @@ void loop() {
     // 3. LOGICA PERFORMANCE
     
     // Cambios de Banco Global
+    // Cambios de Banco Global (Short Press)
     if (btnBankUp.pressed) {
         currentBank++;
-        if (currentBank >= configManager.getActiveBanksCount()) currentBank = 0; // Usar limite dinámico
+        if (currentBank >= configManager.getActiveBanksCount()) currentBank = 0; 
         inToggleView = false;
         refreshUI();
     }
@@ -286,16 +315,72 @@ void loop() {
         inToggleView = false;
         refreshUI();
     }
+    
+    // --- BANK SCROLL LONG PRESS ---
+    bool scrolled = false;
+    // UP
+    if (btnBankUp.longPressed) { // First hit on long press
+        currentBank++;
+        if (currentBank >= configManager.getActiveBanksCount()) currentBank = 0; 
+        inToggleView = false;
+        refreshUI();
+        lastScrollTime = millis();
+        scrolled = true;
+    }
+    if (btnBankUp.isDown() && btnBankUp.isLongPressedState() && !scrolled) {
+        if (millis() - lastScrollTime > SCROLL_DELAY) {
+            currentBank++;
+            if (currentBank >= configManager.getActiveBanksCount()) currentBank = 0; 
+            inToggleView = false;
+            refreshUI();
+            lastScrollTime = millis();
+        }
+    }
+    
+    // DOWN
+    scrolled = false;
+    if (btnBankDown.longPressed) {
+        currentBank--;
+        if (currentBank < 0) currentBank = configManager.getActiveBanksCount() - 1;
+        inToggleView = false;
+        refreshUI();
+        lastScrollTime = millis();
+        scrolled = true;
+    }
+    if (btnBankDown.isDown() && btnBankDown.isLongPressedState() && !scrolled) {
+        if (millis() - lastScrollTime > SCROLL_DELAY) {
+            currentBank--;
+            if (currentBank < 0) currentBank = configManager.getActiveBanksCount() - 1;
+            inToggleView = false;
+            refreshUI();
+            lastScrollTime = millis();
+        }
+    }
 
+    // Toggle short press
     // Toggle short press
     if (btnToggle.pressed) {
         handleToggle();
     }
+    // Toggle Long Press -> TUNER
+    if (btnToggle.longPressed) {
+        MIDI.sendControlChange(68, 127, 1); // CC 68 = Tuner
+        // Visual feedback manual
+        display.lcd.setCursor(0, 0);
+        display.lcd.print(F("   ** TUNER **  "));
+        delay(800);
+        refreshUI();
+    }
     
-    // Presets
+    // Presets Short
     if (btnPreset1.pressed) triggerMidiAction(0);
     if (btnPreset2.pressed) triggerMidiAction(1);
     if (btnPreset3.pressed) triggerMidiAction(2);
+    
+    // Presets Long
+    if (btnPreset1.longPressed) triggerLongPressAction(0);
+    if (btnPreset2.longPressed) triggerLongPressAction(1);
+    if (btnPreset3.longPressed) triggerLongPressAction(2);
     
     // Globales
     if (btnGuitarChange.pressed) triggerGlobalAction(0); // ID 0
