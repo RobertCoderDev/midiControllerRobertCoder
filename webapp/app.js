@@ -22,7 +22,7 @@ let isConnected = false;
 
 // Estado local
 // Estado local
-// const NUM_BANKS = 8; // YA NO ES FIJO
+const NUM_BANKS = 10; // Definido fijo para la matriz inicial
 let activeBanksCount = 0; // Se actualiza via Serial
 const NUM_PRESETS = 3;
 

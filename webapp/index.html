@@ -37,8 +37,12 @@
                     <button id="btnNextBank">▶</button>
                     
                     <div class="bank-actions">
-                        <button id="btnAddBank" class="btn-mini-action" title="Agregar Banco">+</button>
-                        <button id="btnDelBank" class="btn-mini-action btn-danger" title="Borrar Banco">🗑️</button>
+                        <button id="btnAddBank" class="btn-mini-action" title="Agregar Banco">
+                            <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                        </button>
+                        <button id="btnDelBank" class="btn-mini-action btn-danger" title="Borrar Banco">
+                            <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -55,16 +59,18 @@
                         <option value="D">Efecto (CC)</option>
                     </select>
 
-                    <div class="fs-options-preset">
-                        <label>Bank:</label><input type="number" class="fs-val2-pc" min="0" max="99">
-                        <label>Prog:</label><input type="number" class="fs-val1-pc" min="0" max="99">
-                    </div>
+                    <div class="fs-dynamic-content">
+                        <div class="fs-options-preset">
+                            <label>Bank:</label><input type="number" class="fs-val2-pc" min="0" max="99">
+                            <label>Prog:</label><input type="number" class="fs-val1-pc" min="0" max="99">
+                        </div>
 
-                    <div class="fs-options-dict" style="display:none;">
-                        <label>Efecto:</label>
-                        <select class="fs-val1-dict">
-                            <!-- Se llena con JS -->
-                        </select>
+                        <div class="fs-options-dict" style="display:none;">
+                            <label>Efecto:</label>
+                            <select class="fs-val1-dict">
+                                <!-- Se llena con JS -->
+                            </select>
+                        </div>
                     </div>
 
                     <button class="btn-save-slot">💾 Guardar</button>
@@ -74,17 +80,23 @@
                 <div class="footswitch" data-index="1">
                     <div class="fs-header">Preset 2</div>
                     <input type="text" class="fs-name" maxlength="4" placeholder="NAME">
+                    
+                    <label>Tipo:</label>
                     <select class="fs-type">
                         <option value="P">Preset (PC)</option>
                         <option value="D">Efecto (CC)</option>
                     </select>
-                    <div class="fs-options-preset">
-                        <label>Bank:</label><input type="number" class="fs-val2-pc" min="0" max="99">
-                        <label>Prog:</label><input type="number" class="fs-val1-pc" min="0" max="99">
+                    
+                    <div class="fs-dynamic-content">
+                        <div class="fs-options-preset">
+                            <label>Bank:</label><input type="number" class="fs-val2-pc" min="0" max="99">
+                            <label>Prog:</label><input type="number" class="fs-val1-pc" min="0" max="99">
+                        </div>
+                        <div class="fs-options-dict" style="display:none;">
+                            <label>Efecto:</label><select class="fs-val1-dict"></select>
+                        </div>
                     </div>
-                    <div class="fs-options-dict" style="display:none;">
-                        <label>Efecto:</label><select class="fs-val1-dict"></select>
-                    </div>
+                    
                     <button class="btn-save-slot">💾 Guardar</button>
                 </div>
 
@@ -92,17 +104,23 @@
                 <div class="footswitch" data-index="2">
                     <div class="fs-header">Preset 3</div>
                     <input type="text" class="fs-name" maxlength="4" placeholder="NAME">
+                    
+                    <label>Tipo:</label>
                     <select class="fs-type">
                         <option value="P">Preset (PC)</option>
                         <option value="D">Efecto (CC)</option>
                     </select>
-                    <div class="fs-options-preset">
-                        <label>Bank:</label><input type="number" class="fs-val2-pc" min="0" max="99">
-                        <label>Prog:</label><input type="number" class="fs-val1-pc" min="0" max="99">
+                    
+                    <div class="fs-dynamic-content">
+                        <div class="fs-options-preset">
+                            <label>Bank:</label><input type="number" class="fs-val2-pc" min="0" max="99">
+                            <label>Prog:</label><input type="number" class="fs-val1-pc" min="0" max="99">
+                        </div>
+                        <div class="fs-options-dict" style="display:none;">
+                            <label>Efecto:</label><select class="fs-val1-dict"></select>
+                        </div>
                     </div>
-                    <div class="fs-options-dict" style="display:none;">
-                        <label>Efecto:</label><select class="fs-val1-dict"></select>
-                    </div>
+                    
                     <button class="btn-save-slot">💾 Guardar</button>
                 </div>
             </div>
