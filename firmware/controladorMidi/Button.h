@@ -14,7 +14,7 @@ class Button {
     unsigned long _pressedTime;
     bool _isLongPressed;
     bool _ignoreNextRelease;
-    const unsigned long LONG_PRESS_TIME = 800;
+    const unsigned long LONG_PRESS_TIME = 1000;
 
   public:
     bool pressed;      // True un ciclo cuando se presiona

@@ -57,8 +57,8 @@ DisplayManager display(0x27, 16, 2);
 ConfigManager configManager;
 // Instanciamos dos comandantes separados para tener buffers independientes
 // y evitar conflictos si llegan datos simultáneos por USB y BT.
-SerialCommander commanderUSB(&configManager, &btSerial); 
-SerialCommander commanderBT(&configManager, &btSerial);
+SerialCommander commanderUSB(&configManager); 
+SerialCommander commanderBT(&configManager);
 
 // --- DATOS Y ESTADO ---
 // --- DATOS Y ESTADO ---
@@ -76,9 +76,9 @@ bool inToggleView = false;
 
 // Estados adicionales
 bool ctrl2Status = false;
-// Estados adicionales
-bool ctrl2Status = false;
 bool ledStates[3] = {false, false, false}; 
+// Global Effect States (for toggling via Long Press / Global buttons)
+bool globalEffectStates[DICT_SIZE]; 
 
 // --- SCROLL CONTROL ---
 unsigned long lastScrollTime = 0;
@@ -87,41 +87,50 @@ const unsigned long SCROLL_DELAY = 250; // ms entre saltos de banco
 // --- FUNCIONES AUXILIARES (Lógica de Negocio) ---
 
 void refreshUI() {
+    // 1. DISPLAY UPDATE (SAFE MODE)
+    // Usamos buffers temporales para asegurar null-termination y evitar crashes por strings corruptos.
+    char line1[17];
+    char line2[17];
+    memset(line1, 0, 17);
+    memset(line2, 0, 17);
+
     if (inToggleView && previousPresetIndex != -1) {
-        // En modo toggle
+        // --- TOGGLE VIEW ---
         ButtonConfig* currCfg = configManager.getButtonConfig(currentBank, currentPresetIndex);
         ButtonConfig* prevCfg = configManager.getButtonConfig(previousBank, previousPresetIndex);
         
         display.showToggleView(currCfg ? currCfg->name : "???", prevCfg ? prevCfg->name : "???");
-        ledManager.setExclusive(currentPresetIndex); 
     } else {
-        // Vista Principal
+        // --- MAIN VIEW ---
         ButtonConfig* p1 = configManager.getButtonConfig(currentBank, 0);
         ButtonConfig* p2 = configManager.getButtonConfig(currentBank, 1);
         ButtonConfig* p3 = configManager.getButtonConfig(currentBank, 2);
 
-        // Usamos el nombre del banco desde ConfigManager (EEPROM)
         display.showMainView(
-            "GP-200", // Título fijo o personalizado 
+            "GP-200", 
             configManager.getBankName(currentBank),
             p1 ? p1->name : "---",
             p2 ? p2->name : "---",
             p3 ? p3->name : "---"
         );
+    }
         
-        // LEDs logic
-        ButtonConfig* firstBtn = configManager.getButtonConfig(currentBank, 0);
-        char type = firstBtn ? firstBtn->type : 'P';
-        
-        if (type == 'P') {
-            if (currentPresetIndex != -1 && lastPresetBank == currentBank) {
-                 ledManager.setExclusive(currentPresetIndex);
-            } else {
-                 ledManager.setAllOff();
-            }
+    // 2. LED LOGIC (ROBUST MODE)
+    // Si estamos en un preset válido (0, 1, 2) y no en modo Toggle loco -> LED ENCENDIDO.
+    // Ignoramos el "tipo" del boton 0, simplemente mostramos el estado actual.
+    
+    if (currentPresetIndex >= 0 && currentPresetIndex < 3) {
+        // PRESET MODE: Solo 1 LED encendido (el actual)
+        // Check extra: solo si estamos en el banco correcto (para latencia visual)
+        if (lastPresetBank == currentBank) {
+            ledManager.setExclusive(currentPresetIndex);
         } else {
-             // Effect mode logic
-             for(int i=0; i<3; i++) ledManager.setLed(i, ledStates[i]);
+            ledManager.setAllOff();
+        }
+    } else {
+        // EFFECT MODE / OTHER: Mostrar estado individual
+        for(int i=0; i<3; i++) {
+            ledManager.setLed(i, ledStates[i]);
         }
     }
 }
@@ -135,10 +144,14 @@ void triggerMidiAction(int presetIndex) {
     // Interpretamos la configuración
     if (cmd->type == 'P') {
         // --- PRESET MODE (PROGRAM CHANGE) ---
-        if (currentPresetIndex != -1) {
+        // FIX: Solo actualizar historial si cambiamos a un preset DIFERENTE
+        // Esto evita que "machaquemos" el historial si pulsamos el mismo botón 2 veces.
+        bool isDifferent = (currentPresetIndex != presetIndex) || (lastPresetBank != currentBank);
+
+        if (currentPresetIndex != -1 && isDifferent) {
             previousBank = lastPresetBank;
             previousPresetIndex = currentPresetIndex;
-        } else {
+        } else if (currentPresetIndex == -1) {
             previousPresetIndex = -1;
         }
         
@@ -153,6 +166,13 @@ void triggerMidiAction(int presetIndex) {
         // --- DICTIONARY MODE (EFFECTS) ---
         // Toggle Effects logic
         ledStates[presetIndex] = !ledStates[presetIndex];
+        
+        // SYNC Global State too (if value1 is valid index)
+        int idx = cmd->value1;
+        if (idx >= 0 && idx < DICT_SIZE) {
+             globalEffectStates[idx] = ledStates[presetIndex]; // Sync internal param state with LED state
+        }
+        
         int val = ledStates[presetIndex] ? 127 : 0;
         
         int cc = getCCFromDict(cmd->value1); // Value1 is index
@@ -162,7 +182,6 @@ void triggerMidiAction(int presetIndex) {
         // Custom
     }
     
-    refreshUI();
     refreshUI();
 }
 
@@ -182,13 +201,25 @@ void triggerLongPressAction(int presetIndex) {
         MIDI.sendProgramChange(cmd->lpValue1, 1);
     } else if (cmd->lpType == 'D') {
         // Dict Effect
-        int cc = getCCFromDict(cmd->lpValue1);
-        MIDI.sendControlChange(cc, 127, 1); // Trigger ON
+        int idx = cmd->lpValue1;
+        if (idx >= 0 && idx < DICT_SIZE) {
+            globalEffectStates[idx] = !globalEffectStates[idx]; // Toggle State
+            int val = globalEffectStates[idx] ? 127 : 0;
+            int cc = getCCFromDict(idx);
+            MIDI.sendControlChange(cc, val, 1);
+            
+            // Visual feedback
+            display.showMessage(getNameFromDict(idx), val ? "ON" : "OFF", 600);
+            refreshUI();
+        }
     }
 }
 
 void handleToggle() {
-    if (previousPresetIndex == -1) return;
+    if (previousPresetIndex == -1 || previousBank == -1) {
+        // No hay historial válido, no hacemos nada
+        return;
+    }
 
     int tempBank = lastPresetBank; 
     int tempPreset = currentPresetIndex;
@@ -246,21 +277,45 @@ void setup() {
     pinMode(LED_BUILTIN, OUTPUT); 
     digitalWrite(LED_BUILTIN, LOW);
 
-    // inicializar MIDI primero (esto pone el puerto a 31250)
-    MIDI.begin(1);
-
-    // --- AUTO-CONFIG HC-06 ---
-    // Intentamos configurar el módulo por si viene de fábrica (9600)
+    // 1. HARDWARE SERIAL (USB + MIDI) -> 31250
+    // MIDI.begin() inicializa Serial a 31250 automáticamente.
+    MIDI.begin(MIDI_CHANNEL_OMNI); 
+    // Serial.begin(9600); // DEBUG ONLY
+    
+    // 2. SOFTWARE SERIAL (BLUETOOTH) -> 9600
+    // Usamos la velocidad por defecto segura del HC-06.
     btSerial.begin(9600); 
+    
+    // --- BT CONFIGURATION (AUTO-RUN) ---
+    // Configura Name y PIN al arrancar.
+    // Una vez configurado, estas lineas se pueden comentar para ahorrar 2 segundos de inicio.
     delay(500); 
-    btSerial.print("AT+NAMEMidiController"); delay(500); // Configurar Nombre
-    btSerial.print("AT+PIN1234");        delay(500); // Configurar PIN
-    btSerial.print("AT+BAUD6");          delay(500); // Configurar a 38400
+    btSerial.print("AT+NAMEMidiController"); 
+    delay(1000); 
+    btSerial.print("AT+PIN0290"); 
+    delay(1000); 
     
-    // Ahora iniciamos a la velocidad objetivo
-    btSerial.begin(38400);
-    
+    // Display Init
     display.begin();
+
+    /* HARDWARE RESET DISABLED - CAUSING BOOT LOOP
+    // HARDWARE FACTORY RESET CHECK
+    // Explicitly set PULLUPs and wait a bit to avoid floating pins triggering false reset
+    pinMode(BTN_BANK_UP_PIN, INPUT_PULLUP);
+    pinMode(BTN_BANK_DOWN_PIN, INPUT_PULLUP);
+    delay(100); // 100ms stabilization
+
+    // Si se mantienen presionados UP y DOWN al arrancar -> Reset
+    if (digitalRead(BTN_BANK_UP_PIN) == LOW && digitalRead(BTN_BANK_DOWN_PIN) == LOW) {
+        display.showCustom("FACTORY RESET...", " PLEASE WAIT ");
+        configManager.resetToDefaults();
+        configManager.save();
+        delay(2000);
+        display.showCustom(" RESET DONE ", " REBOOTING ");
+        delay(1000);
+    }
+    */
+
     display.showWelcome();
     
     configManager.begin(); // Carga de EEPROM
@@ -278,6 +333,14 @@ void loop() {
         // Serial.println(F("DEBUG:HEARTBEAT"));
     }
 
+    // 0.1 MIDI READ - PERMANENTLY DISABLED
+    // We prioritize App Commands (Text). MIDI.read() consumes characters and breaks commands.
+    // If we need MIDI IN in the future, we must use a separate port or advanced parsing.
+    /*
+    if (MIDI.read()) {
+    }
+    */
+
     // 1. ESCUCHAR COMANDOS DE LA APP
     bool configChanged = false;
     // Usamos instancias separadas para cada puerto
@@ -285,24 +348,36 @@ void loop() {
     if (commanderBT.update(btSerial)) configChanged = true;
     
     if (configChanged) {
+        // CRASH FIX: Update currentBank if we deleted the last one
+        if (currentBank >= configManager.getActiveBanksCount()) {
+            currentBank = configManager.getActiveBanksCount() - 1;
+            if (currentBank < 0) currentBank = 0; // Safety for 1 bank
+        }
         refreshUI();
     }
     
     // 2. Update Hardware
+    // Global Cooldown Check to prevent "stacking"
+    static unsigned long lastActionTime = 0;
+    const unsigned long ACTION_COOLDOWN = 300; 
+
     btnBankUp.update();
     btnBankDown.update();
     btnToggle.update();
     btnPreset1.update();
     btnPreset2.update();
     btnPreset3.update();
-    btnGuitarChange.update(); // Add update
-    btnCtrl2.update();        // Add update
+    btnGuitarChange.update(); 
+    btnCtrl2.update();        
     
+    // Si hace menos de 300ms que hicimos algo, ignoramos nuevas acciones
+    if (millis() - lastActionTime < ACTION_COOLDOWN) return;
+
     // 3. LOGICA PERFORMANCE
     
-    // Cambios de Banco Global
     // Cambios de Banco Global (Short Press)
     if (btnBankUp.pressed) {
+        lastActionTime = millis(); // Reset cooldown
         currentBank++;
         if (currentBank >= configManager.getActiveBanksCount()) currentBank = 0; 
         inToggleView = false;
@@ -310,6 +385,7 @@ void loop() {
     }
     
     if (btnBankDown.pressed) {
+        lastActionTime = millis();
         currentBank--;
         if (currentBank < 0) currentBank = configManager.getActiveBanksCount() - 1;
         inToggleView = false;
@@ -317,72 +393,32 @@ void loop() {
     }
     
     // --- BANK SCROLL LONG PRESS ---
-    bool scrolled = false;
-    // UP
-    if (btnBankUp.longPressed) { // First hit on long press
-        currentBank++;
-        if (currentBank >= configManager.getActiveBanksCount()) currentBank = 0; 
-        inToggleView = false;
-        refreshUI();
-        lastScrollTime = millis();
-        scrolled = true;
-    }
-    if (btnBankUp.isDown() && btnBankUp.isLongPressedState() && !scrolled) {
-        if (millis() - lastScrollTime > SCROLL_DELAY) {
-            currentBank++;
-            if (currentBank >= configManager.getActiveBanksCount()) currentBank = 0; 
-            inToggleView = false;
-            refreshUI();
-            lastScrollTime = millis();
-        }
-    }
-    
-    // DOWN
-    scrolled = false;
-    if (btnBankDown.longPressed) {
-        currentBank--;
-        if (currentBank < 0) currentBank = configManager.getActiveBanksCount() - 1;
-        inToggleView = false;
-        refreshUI();
-        lastScrollTime = millis();
-        scrolled = true;
-    }
-    if (btnBankDown.isDown() && btnBankDown.isLongPressedState() && !scrolled) {
-        if (millis() - lastScrollTime > SCROLL_DELAY) {
-            currentBank--;
-            if (currentBank < 0) currentBank = configManager.getActiveBanksCount() - 1;
-            inToggleView = false;
-            refreshUI();
-            lastScrollTime = millis();
-        }
-    }
+    // DISABLED: User rule "Solo los preseset 1,2,3 usan long press/toggle"
+    // (Intentionally removed scrolling logic)
 
     // Toggle short press
     // Toggle short press
     if (btnToggle.pressed) {
+        lastActionTime = millis();
         handleToggle();
     }
-    // Toggle Long Press -> TUNER
+    // Toggle Long Press
+    // DISABLED: User rule
     if (btnToggle.longPressed) {
-        MIDI.sendControlChange(68, 127, 1); // CC 68 = Tuner
-        // Visual feedback manual
-        display.lcd.setCursor(0, 0);
-        display.lcd.print(F("   ** TUNER **  "));
-        delay(800);
-        refreshUI();
+        // Do nothing
     }
     
     // Presets Short
-    if (btnPreset1.pressed) triggerMidiAction(0);
-    if (btnPreset2.pressed) triggerMidiAction(1);
-    if (btnPreset3.pressed) triggerMidiAction(2);
+    if (btnPreset1.pressed) { lastActionTime = millis(); triggerMidiAction(0); }
+    if (btnPreset2.pressed) { lastActionTime = millis(); triggerMidiAction(1); }
+    if (btnPreset3.pressed) { lastActionTime = millis(); triggerMidiAction(2); }
     
     // Presets Long
-    if (btnPreset1.longPressed) triggerLongPressAction(0);
-    if (btnPreset2.longPressed) triggerLongPressAction(1);
-    if (btnPreset3.longPressed) triggerLongPressAction(2);
+    if (btnPreset1.longPressed) { lastActionTime = millis(); triggerLongPressAction(0); }
+    if (btnPreset2.longPressed) { lastActionTime = millis(); triggerLongPressAction(1); }
+    if (btnPreset3.longPressed) { lastActionTime = millis(); triggerLongPressAction(2); }
     
     // Globales
-    if (btnGuitarChange.pressed) triggerGlobalAction(0); // ID 0
-    if (btnCtrl2.pressed)        triggerGlobalAction(1); // ID 1
+    if (btnGuitarChange.pressed) { lastActionTime = millis(); triggerGlobalAction(0); }
+    if (btnCtrl2.pressed)        { lastActionTime = millis(); triggerGlobalAction(1); }
 }

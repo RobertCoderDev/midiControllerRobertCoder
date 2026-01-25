@@ -19,12 +19,12 @@ struct ButtonConfig {
 
 // Estructura global de datos
 // Eliminamos Guitarras, Single Context.
-const int MAX_BANKS_CFG = 10; // LIMITE MAXIMO 10
+const int MAX_BANKS_CFG = 4; // REDUCED FROM 10 TO SAVE RAM (CRITICAL)
 const int NUM_PRESETS_CFG = 3; 
 
 // Magic number actualizado para forzar reset de estructura
 // Magic number actualizado para forzar reset de estructura por nuevos campos LP
-const int EEPROM_MAGIC = 12349; // Bump version for Long Press Support
+const int EEPROM_MAGIC = 12350; // Bump version to force Reset (1 Bank Default)
 
 class ConfigManager {
   private:
@@ -179,9 +179,39 @@ class ConfigManager {
         return false;
     }
     
-    bool removeBank() {
+    // Delete specific bank and shift down
+    bool removeBank(int index) {
+        if (_activeBanks <= 1 || index < 0 || index >= _activeBanks) return false;
+
+        // Shift everything down from index + 1
+        for (int b = index; b < _activeBanks - 1; b++) {
+             // Copy Bank b+1 into Bank b
+             for (int p = 0; p < NUM_PRESETS_CFG; p++) {
+                 configs[b][p] = configs[b+1][p];
+             }
+             strncpy(bankNames[b], bankNames[b+1], 9);
+        }
+
+        _activeBanks--;
+        
+        // CLEANUP: Wipe the old last bank (now unused) to avoid confusion
+        // if re-added later or accessed by mistake.
+        initBank(_activeBanks); // Reset to default Px-y logic
+        snprintf(bankNames[_activeBanks], 9, "EMPTY"); // Mark explicitly
+        
+        save();
+        return true;
+    }
+
+    // Legacy/Default (Delete Last)
+    bool removeBankLast() {
         if (_activeBanks > 1) {
             _activeBanks--;
+            
+            // Cleanup
+            initBank(_activeBanks);
+            snprintf(bankNames[_activeBanks], 9, "EMPTY");
+            
             save();
             return true;
         }

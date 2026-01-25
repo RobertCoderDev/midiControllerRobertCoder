@@ -6,12 +6,11 @@
 #include "ConfigManager.h"
 
 // Buffer para entrada serial
-const int SC_BUFFER_SIZE = 80;
+const int SC_BUFFER_SIZE = 40; // Reduced to save RAM
 
 class SerialCommander {
   private:
     ConfigManager* _config;
-    Stream* _btStream; // Canal dedicado al Bluetooth
     char _inputBuffer[SC_BUFFER_SIZE];
     int _bufferIndex;
 
@@ -19,9 +18,11 @@ class SerialCommander {
     // but keeping processCommand private as it was originally.
     void sendAllConfig(Stream& port) {
         port.println(F("BEGIN:CONFIG"));
+        port.print(F("BANK_COUNT:"));
+        port.println(_config->getActiveBanksCount());
         // 1. Enviar Info de Bancos
         // Protocolo: BANK:ID:NAME
-        for (int b = 0; b < NUM_BANKS_CFG; b++) {
+        for (int b = 0; b < MAX_BANKS_CFG; b++) {
             port.print(F("BANK:"));
             port.print(b); port.print(F(":"));
             port.println(_config->getBankName(b));
@@ -55,8 +56,8 @@ class SerialCommander {
                 port.print(btn->value2); port.print(F(":"));
                 port.print(btn->lpType); port.print(F(":"));
                 port.print(btn->lpValue1); port.print(F(":"));
-                port.println(btn->lpValue2);
-                delay(5);
+                port.print(btn->lpValue2); port.println();
+                delay(10); // Aumentado para dar respiro a la App
             }
         }
         port.println(F("END:CONFIG"));
@@ -84,10 +85,22 @@ class SerialCommander {
              return true; 
              
         } else if (strcmp(token, "DELBANK") == 0) {
-             if (_config->removeBank()) {
-                 port.println(F("OK:BANK_REMOVED"));
+             char* sId = strtok(NULL, ":");
+             bool success = false;
+             
+             if (sId) {
+                 int idx = atoi(sId);
+                 success = _config->removeBank(idx);
              } else {
-                 port.println(F("ERR:MIN_BANKS"));
+                 // Backward compatibility (borrar ultimo)
+                 success = _config->removeBankLast();
+             }
+
+             if (success) {
+                  port.println(F("OK:BANK_REMOVED"));
+                  return true; 
+             } else {
+                  port.println(F("ERR:MIN_BANKS"));
              }
              return true;
             
@@ -179,15 +192,19 @@ class SerialCommander {
                  port.println(F("OK:BANK_RENAMED"));
                  return true; // Refrescar UI (título banco)
              }
+        } else if (strcmp(token, "RESET") == 0) {
+             _config->resetToDefaults();
+             _config->save();
+             port.println(F("OK:RESET_DONE"));
+             return true;  
         }
 
         return false;
     }
 
   public:
-    SerialCommander(ConfigManager* config, Stream* btStream = nullptr) {
+    SerialCommander(ConfigManager* config) {
         _config = config;
-        _btStream = btStream;
         _bufferIndex = 0;
         // Inicializar buffer limpio
         memset(_inputBuffer, 0, SC_BUFFER_SIZE);

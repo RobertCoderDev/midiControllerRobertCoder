@@ -49,11 +49,11 @@ let currentBank = 0;
 
 document.addEventListener('DOMContentLoaded', () => {
     initUI();
-    
+
     // Configurar Modal
     const modal = document.getElementById('connectionModal');
     const btnConnect = document.getElementById('btnConnect');
-    
+
     btnConnect.addEventListener('click', () => {
         modal.classList.add('active');
     });
@@ -65,12 +65,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Modos de Conexión
     document.getElementById('btnModeUSB').addEventListener('click', () => {
         modal.classList.remove('active');
-        connectSerial(31250); // Velocidad MIDI Standard
+        connectSerial(31250); // Velocidad MIDI Standard (Hardware Serial)
     });
 
     document.getElementById('btnModeBT').addEventListener('click', () => {
         modal.classList.remove('active');
-        connectSerial(38400); // Velocidad BT Modificada
+        connectSerial(9600); // Velocidad Standard HC-06 (Software Serial)
     });
 
 
@@ -95,20 +95,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const name = document.getElementById('txtBankName').value.toUpperCase().substring(0, 8);
         saveBankName(currentBank, name);
     });
-    
+
     // Gestión Dinámica Bancos
     document.getElementById('btnAddBank').addEventListener('click', () => {
         if (confirm("¿Agregar un nuevo banco al final?")) {
             sendCommand("ADDBANK");
             // Esperar respuesta OK:BANK_ADDED que disparará recarga si implementamos refresh
             // O podemos hacer un reload manual tras un delay
-            setTimeout(startConfigLoad, 500); 
+            setTimeout(startConfigLoad, 500);
         }
     });
 
     document.getElementById('btnDelBank').addEventListener('click', () => {
-        if (confirm("¿BORRAR el último banco? Esta acción no se puede deshacer.")) {
-            sendCommand("DELBANK");
+        if (confirm(`¿BORRAR el Banco ${currentBank}? Esta acción no se puede deshacer.`)) {
+            // FIX: Enviar índice específico para borrar EL ACTUAL, no el último
+            sendCommand(`DELBANK:${currentBank}`);
             setTimeout(startConfigLoad, 500);
         }
     });
@@ -131,7 +132,7 @@ function initUI() {
         sel.addEventListener('change', (e) => {
             const container = sel.closest('.lp-container');
             const type = e.target.value;
-            
+
             // Ocultar todos
             container.querySelector('.lp-opt-p').style.display = 'none';
             container.querySelector('.lp-opt-c').style.display = 'none';
@@ -236,7 +237,7 @@ async function connectSerial(baudRate) {
 
     try {
         port = await navigator.serial.requestPort();
-        
+
         console.log(`Abriendo puerto a ${baudRate} baudios...`);
         await port.open({ baudRate: baudRate });
 
@@ -254,14 +255,14 @@ async function connectSerial(baudRate) {
 
         // Escuchar
         readLoop();
-        
+
         // Reset local data before sync
         resetLocalConfig();
 
         // Handshake & Sync
         setTimeout(() => {
             sendCommand("HELLO");
-            startConfigLoad(); 
+            startConfigLoad();
         }, 500);
 
     } catch (err) {
@@ -313,7 +314,7 @@ function parseSerialData(data) {
             if (parts.length >= 3) {
                 const id = parseInt(parts[1]);
                 const name = parts[2] || "";
-                
+
                 // Expandir arrays si es necesario
                 if (id >= activeBanksCount) activeBanksCount = id + 1;
                 bankNames[id] = name;
@@ -328,14 +329,14 @@ function parseSerialData(data) {
                 const type = parts[3];
                 const v1 = parseInt(parts[4]);
                 const v2 = parseInt(parts[5]);
-                
+
                 // Update UI directly
                 const card = document.querySelector(`.global-card[data-id="${id}"]`);
                 if (card) {
                     card.querySelector('.gc-name').value = name;
                     card.querySelector('.gc-type').value = type;
                     card.querySelector('.gc-type').dispatchEvent(new Event('change')); // Trigger visibility
-                    
+
                     if (type === 'P') {
                         card.querySelector('.gc-v1').value = v1;
                         card.querySelector('.gc-v2').value = v2;
@@ -344,7 +345,7 @@ function parseSerialData(data) {
                     }
                 }
             }
-            
+
         } else if (line.startsWith("DATA:")) {
             // DATA:B:P:NAME:TYPE:V1:V2 (NO GUITAR)
             const parts = line.split(":");
@@ -387,13 +388,13 @@ function parseSerialData(data) {
             bankNames[currentBank] = document.getElementById('txtBankName').value.toUpperCase();
         } else if (line.startsWith("OK:BANK_ADDED")) {
             showToast("Banco Agregado - Recargando...");
-             // startConfigLoad(); // Triggered by button, but good backup 
+            // startConfigLoad(); // Triggered by button, but good backup 
         } else if (line.startsWith("OK:BANK_REMOVED")) {
             showToast("Banco Eliminado - Recargando...");
         } else if (line.startsWith("ERR:MAX_BANKS")) {
-             showToast("Límite de Bancos Alcanzado", "error");
+            showToast("Límite de Bancos Alcanzado", "error");
         } else if (line.startsWith("ERR:MIN_BANKS")) {
-             showToast("No se puede borrar el último banco", "error");
+            showToast("No se puede borrar el último banco", "error");
         } else if (line.startsWith("READY:")) {
             console.log("Pedal Ready");
             showToast("Pedal Listo ✅");
@@ -418,11 +419,11 @@ function renderPedalboard() {
     // Validar limites actuales
     if (activeBanksCount == 0) return; // Nada cargado aun
     if (currentBank >= activeBanksCount) currentBank = activeBanksCount - 1;
-    
-    document.getElementById('lblBankIndex').textContent = `BANK ${currentBank} / ${activeBanksCount -1}`;
+
+    document.getElementById('lblBankIndex').textContent = `BANK ${currentBank} / ${activeBanksCount - 1}`;
     const nameInput = document.getElementById('txtBankName');
     if (nameInput) nameInput.value = bankNames[currentBank] || "";
-    
+
     // Habilitar/Deshabilitar botón borrar
     const btnDel = document.getElementById('btnDelBank');
     if (activeBanksCount <= 1) btnDel.classList.add('disabled');
@@ -431,7 +432,7 @@ function renderPedalboard() {
     // Update Slots
     for (let i = 0; i < 3; i++) {
         if (!configs[currentBank]) configs[currentBank] = []; // Safety
-        
+
         const data = configs[currentBank][i];
         const el = document.querySelector(`.footswitch[data-index="${i}"]`);
 
@@ -465,10 +466,10 @@ function renderPedalboard() {
             el.querySelector('.fs-lp-v1-p').value = data.lpV1;
             el.querySelector('.fs-lp-v2-p').value = data.lpV2;
         } else if (data.lpType === 'C') {
-             el.querySelector('.fs-lp-v1-c').value = data.lpV1;
-             el.querySelector('.fs-lp-v2-c').value = data.lpV2;
+            el.querySelector('.fs-lp-v1-c').value = data.lpV1;
+            el.querySelector('.fs-lp-v2-c').value = data.lpV2;
         } else if (data.lpType === 'D') {
-             el.querySelector('.fs-lp-val-d').value = data.lpV1;
+            el.querySelector('.fs-lp-val-d').value = data.lpV1;
         }
     }
 }
@@ -549,23 +550,26 @@ let isConfigLoading = false;
 
 function startConfigLoad() {
     if (isConfigLoading) return;
-    
+
     isConfigLoading = true;
     const btn = document.getElementById('btnLoad');
     const originalText = btn.innerHTML;
-    
+
     btn.classList.add('loading');
     btn.innerHTML = "Leyendo..."; // Spinner agregado por CSS
-    
+
+    // FIX: Resetear memoria local para evitar "bancos fantasma"
+    resetLocalConfig();
+
     // 1. Envío inicial
     sendCommand("GETALL");
-    
+
     // 2. Setup Retry Loop (cada 2 segundos)
     configLoadTimer = setInterval(() => {
         console.log("Re-intentando leer configuración...");
         sendCommand("GETALL");
     }, 2000);
-    
+
     // 3. Setup Max Timeout (10 segundos)
     configTimeoutInfo = setTimeout(() => {
         stopConfigLoad(false); // Fail
@@ -577,18 +581,18 @@ function startConfigLoad() {
 
 function stopConfigLoad(success) {
     if (!isConfigLoading) return;
-    
+
     isConfigLoading = false;
     const btn = document.getElementById('btnLoad');
-    
+
     // Limpiar Timers
     if (configLoadTimer) clearInterval(configLoadTimer);
     if (configTimeoutInfo) clearTimeout(configTimeoutInfo);
-    
+
     // Reset UI
     btn.classList.remove('loading');
     btn.innerHTML = "📥 Leer Configuración"; // Restaurar texto
-    
+
     if (success) {
         showToast("Configuración Sincronizada ✅");
         // Habilitar panel global también
@@ -601,19 +605,19 @@ const globalConfigs = [{}, {}]; // ID 0 and 1
 
 function initGlobalUI() {
     // Reusar lógica de selects de efectos (ya poblados por clase fs-val1-dict)
-    
+
     // Listeners Change Type
     document.querySelectorAll('.gc-type').forEach(sel => {
         sel.addEventListener('change', (e) => {
-             const card = e.target.closest('.global-card');
-             const val = e.target.value;
-             if (val === 'P') {
-                 card.querySelector('.gc-options-preset').style.display = 'flex';
-                 card.querySelector('.gc-options-dict').style.display = 'none';
-             } else {
-                 card.querySelector('.gc-options-preset').style.display = 'none';
-                 card.querySelector('.gc-options-dict').style.display = 'block';
-             }
+            const card = e.target.closest('.global-card');
+            const val = e.target.value;
+            if (val === 'P') {
+                card.querySelector('.gc-options-preset').style.display = 'flex';
+                card.querySelector('.gc-options-dict').style.display = 'none';
+            } else {
+                card.querySelector('.gc-options-preset').style.display = 'none';
+                card.querySelector('.gc-options-dict').style.display = 'block';
+            }
         });
     });
 
@@ -622,22 +626,22 @@ function initGlobalUI() {
         btn.addEventListener('click', (e) => {
             const card = e.target.closest('.global-card');
             const id = card.dataset.id;
-            
+
             const name = card.querySelector('.gc-name').value.toUpperCase();
             const type = card.querySelector('.gc-type').value;
             let v1 = 0, v2 = 0;
-            
+
             if (type === 'P') {
                 v1 = card.querySelector('.gc-v1').value || 0;
                 v2 = card.querySelector('.gc-v2').value || 0;
             } else {
-                const sel = card.querySelector('.gc-val-dict select'); 
+                const sel = card.querySelector('.gc-val-dict select');
                 // Nota: la estructura HTML de arriba era simplificada, 
                 // la clase es .gc-val-dict y ADENTRO podría estar el select o ser el select.
                 // Revisando HTML insertado: <select class="gc-val-dict fs-val1-dict">
-                v1 = card.querySelector('.gc-val-dict').value; 
+                v1 = card.querySelector('.gc-val-dict').value;
             }
-            
+
             // SAVEGLO:ID:NAME:TYPE:V1:V2
             const cmd = `SAVEGLO:${id}:${name}:${type}:${v1}:${v2}`;
             console.log("TX GLO:", cmd);
