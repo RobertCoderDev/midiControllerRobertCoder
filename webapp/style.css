@@ -738,3 +738,84 @@ label {
         grid-template-columns: 1fr;
     }
 }
+
+/* Developer Footer Styles */
+.dev-footer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 0.95rem;
+    color: var(--text-dim);
+    transition: transform 0.3s;
+}
+
+.dev-footer:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px 0 rgba(188, 19, 254, 0.2); 
+    border-color: rgba(188, 19, 254, 0.3);
+}
+
+.dev-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 800px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.dev-profile {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.dev-label {
+    font-weight: 300;
+}
+
+.dev-name {
+    color: var(--neon-purple);
+    font-weight: 700;
+    font-family: 'Share Tech Mono', monospace;
+    letter-spacing: 1px;
+    text-shadow: 0 0 10px rgba(188, 19, 254, 0.4);
+}
+
+.github-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 8px 16px;
+    border-radius: 20px;
+    text-decoration: none;
+    color: var(--text-main);
+    border: 1px solid transparent;
+    transition: all 0.3s ease;
+    font-weight: 500;
+}
+
+.github-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--neon-blue);
+    color: var(--neon-blue);
+    box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);
+    transform: scale(1.05);
+}
+
+.github-btn svg {
+    transition: transform 0.3s ease;
+}
+
+.github-btn:hover svg {
+    transform: rotate(360deg);
+}
+
+@media (max-width: 600px) {
+    .dev-content {
+        justify-content: center;
+        flex-direction: column;
+    }
+}

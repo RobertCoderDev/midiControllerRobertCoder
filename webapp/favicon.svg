@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="30" fill="#0f0c29" stroke="#00f3ff" stroke-width="2"/>
+    <text x="50%" y="55%" text-anchor="middle" font-family="monospace" font-weight="bold" font-size="28" fill="#bc13fe" style="text-shadow: 0 0 5px #bc13fe;">MC</text>
+    <path d="M32 2 A30 30 0 0 1 62 32" fill="none" stroke="#bc13fe" stroke-width="2" stroke-linecap="round"/>
+</svg>
